@@ -1,5 +1,4 @@
 import java.io.IOException;
-
 import TSim.TSimInterface;
 
 public class Main {
@@ -19,7 +18,11 @@ public class Main {
 			
 //			String tsimCommand = String.format("/chalmers/groups/tda381/bin/tsim --speed=%d %s", tsim_speed, map);
 			String tsimCommand = String.format("/usr/local/bin/tsim --speed=%d %s", tsim_speed, map);
-			Process p = Runtime.getRuntime().exec(tsimCommand);
+
+      // run separate process tsim 
+      Process p = Runtime.getRuntime().exec(tsimCommand);       
+      
+      
       TSimInterface.init(p.getInputStream(), p.getOutputStream());
       TSimInterface.getInstance().setDebug(true);
 			new Lab1(train1_speed, train2_speed);
