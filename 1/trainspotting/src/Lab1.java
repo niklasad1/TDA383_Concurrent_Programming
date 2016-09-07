@@ -6,7 +6,7 @@ public class Lab1 {
 		/* TSimInterface tsi = TSimInterface.getInstance(); */
 
     // create two objects that execute in individual thread
-    Train t1 = new Train(1, speed1, 1);
+    Train t1 = new Train(1, speed1, 2);
     Train t2 = new Train(2, speed2, 1);
     
     // start threads 
