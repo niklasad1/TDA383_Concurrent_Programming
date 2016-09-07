@@ -1,0 +1,39 @@
+Waiting at stations. The trains must wait 1-2 seconds at each station after coming to a full stop. Avoid randomness. You can use a formula such as: 1000 + (20 * |train_speed|)
+
+Maximum train speed. You need to find out the maximum train speed maxspeed that is usable with your particular solution. This must be at least 15.
+
+No minimal speed. There should be no assumption about minimal train speed. All speeds in the range [1,maxspeed] will be tried.
+
+No excessive semaphores. Solutions that use 10 or more semaphores will be rejected.
+
+No polling. Your solutions must not use busy-waiting-loops or their close relative, polling.
+
+Dynamic behaviour. You must not statically encode how the trains choose track at the switches (for example: train 1 always takes the upper path in the middle, while train 2 always takes the lower; same for stations). You must let the trains have one track as default (for example: the track with shortest distance). You must select the other track if the default track is already occupied by the other train. Note that you should not try to find a solution which works for any track layout or any number of trains, as this will be too complicated for all of us! It is enough to solve the problem for the given track layout.
+
+No map modifications. You may not alter the map in any way, other than by adding sensors.
+
+No randomization. You may not use randomization in any way that affects the simulation, as this makes testing more difficult.
+
+Two trains – two threads. When the system is running there should be only two processes (threads): one for each train. This is in addition to the main thread and the thread that handles communication with the simulator. This latter thread is created in the interface code we provide you with.
+
+Two trains – one implementation. The solution must use the same implementation for both trains. The only thing separating the processes of the different trains is the train id, starting position, and speed. The fact that the two trains start in different positions means that it is permitted (and necessary) to have different initial behaviour for the two processes, but after that the behaviour of the processes must not be dependent on which train it is acting for.
+
+Use binary semaphores. You must use the provided binary semaphore for mutual exclusion. You will have the opportunity to use other synchronisation mechanisms in the other assignments.
+
+Trains mind their own business. Trains should operate independently. A train should not make plans/decisions for the other train. Further, a train should not make plans/decisions for itself based on the information (speed, position, direction) of the other one.
+
+Good train flow. The parallel section in the middle of the map must allow a fast train to overtake a slow train going in the same direction.
+
+Documentation. In addition to working code you need to provide a convincing argument why your solution is correct. You must document your solution with an ASCII text file. Give a high-level description of your program and then go into detail about all pieces of code that are essential for correctness. The documentation should include everything needed for easy understanding of the solution. In particular we demand that your documentation contains discussion of:
+
+Placement of the sensors
+Choice of critical sections
+Maximum train speed and the reason for it
+How you tested your solution
+Code quality. Reasonable code quality is expected; do not complain if your assignment is rejected because we think your program is ugly (magic numbers, poor use of types, cut-and-paste coding style) – even if it works.
+
+Submission. When you submit your solution, you must provide the following files:
+
+Lab1.java (your program to control the trains)
+Lab1.map (which indicates the placement of your sensors)
+documentation.txt (ASCII file containing your documentation)
