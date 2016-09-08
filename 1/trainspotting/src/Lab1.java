@@ -7,16 +7,15 @@ public class Lab1 {
 
     // create two objects that execute in individual thread
     Train t1 = new Train(1, speed1, 2);
-    Train t2 = new Train(2, speed2, 1);
-    
+    /* Train t2 = new Train(2, speed2, 1); */ 
     // start threads 
     t1.start();
-    t2.start();
+    // t2.start();
     
     // wait for threads to finish but they will never finish
     try {
       t1.join();
-      t2.join();
+      // t2.join();
     }
     catch (InterruptedException e) {
       e.getMessage();
