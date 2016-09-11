@@ -54,14 +54,14 @@ public class Lab1
 	private final static Semaphore crossing = new Semaphore(1);
 	private final static Semaphore mid = new Semaphore(1);
 	private final static Semaphore dualLanes = new Semaphore(1);
-	private final static Semaphore alt1 = new Semaphore(1);
-	private final static Semaphore alt2 = new Semaphore(1);
+//	private final static Semaphore alt1 = new Semaphore(1);
+//	private final static Semaphore alt2 = new Semaphore(1);
 	
 	public Lab1(Integer speed1, Integer speed2) 
 	{
 		// create two objects that execute in individual thread
-		Train t1 = new Train(1, 20, 2);
-		Train t2 = new Train(2, 20, 1);
+		Train t1 = new Train(1, speed1, 2);
+		Train t2 = new Train(2, speed2, 1);
 
 		// start threads 
 		t1.start();
@@ -225,18 +225,18 @@ public class Lab1
 		/**
 		 * Handles events for the Train
 		 *
-		 * @throws  CommandException, InterruptedExceptioN
+		 * @throws  CommandException, InterruptedException, IllegalArgumentExpression
 		 **/
 		private void update() throws CommandException, InterruptedException {
 			if (this.direction != 1 && this.direction != 2)
 			{
-				tsim.setSpeed(this.trainID, 0);
-				System.out.println("DIRECTION: " + this.direction);
+				throw new IllegalArgumentException("Direction must be either 1 or 2");
 			}
 
 			SensorEvent sensor = tsim.getSensor(this.trainID);
 
-			if (sensor.getStatus() == SensorEvent.ACTIVE) {
+			if (sensor.getStatus() == SensorEvent.ACTIVE) 
+      {
 				// Station EVENT
 				if (isUpperStationEvent(sensor))
 				{
@@ -289,29 +289,20 @@ public class Lab1
 					tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), LEFT);
 					setDualLaneDirection(RIGHT);
 				}
-				else if (sensorEventEquals(sensor, senseEvent[7]))
+				else if (sensorEventEquals(sensor, senseEvent[7]) || (sensorEventEquals(sensor, senseEvent[8])))
 				{
-					requestSemaphore(alt1);
 					mid.release();
 				}
-				else if (sensorEventEquals(sensor, senseEvent[8]))
+				
+        else if (sensorEventEquals(sensor, senseEvent[9]))
 				{
-					semaStatus();
-					requestSemaphore(alt2);
-					mid.release();
-				}
-				else if (sensorEventEquals(sensor, senseEvent[9]))
-				{
-					semaStatus();
 					requestSemaphore(homeLower);
-					alt1.release();
 					tsim.setSwitch((int)switches[2].getX(), (int)switches[2].getY(), LEFT);
 					dualLanes.release();
 				}
 				else if (sensorEventEquals(sensor, senseEvent[10]))
 				{
 					requestSemaphore(homeLower);
-					alt2.release();
 					tsim.setSwitch((int)switches[2].getX(), (int)switches[2].getY(), RIGHT);
 				}     
 			}
@@ -349,31 +340,25 @@ public class Lab1
 					semaStatus();
 					requestSemaphore(mid);
 					tsim.setSwitch((int)switches[1].getX(), (int)switches[1].getY(), RIGHT);
-					alt1.release();
 					dualLanes.release();
 				}
 				else if (sensorEventEquals(sensor, senseEvent[8]))
 				{
 					requestSemaphore(mid);
 					tsim.setSwitch((int)switches[1].getX(), (int)switches[1].getY(), LEFT);
-					alt2.release();
 				}
-				else if (sensorEventEquals(sensor, senseEvent[9]))
+				else if (sensorEventEquals(sensor, senseEvent[9]) || sensorEventEquals(sensor, senseEvent[10]))
 				{
-					requestSemaphore(alt1);
 					homeLower.release();
 				}
-				else if (sensorEventEquals(sensor, senseEvent[10]))
-				{
-					requestSemaphore(alt2);
-					homeLower.release();
-				}
-				else if (sensorEventEquals(sensor, senseEvent[11]))
+				
+        else if (sensorEventEquals(sensor, senseEvent[11]))
 				{
 					tsim.setSwitch((int)switches[3].getX(), (int)switches[3].getY(), LEFT);
 					setDualLaneDirection(LEFT);
 				}
-				else if (sensorEventEquals(sensor, senseEvent[12]))
+				
+        else if (sensorEventEquals(sensor, senseEvent[12]))
 				{
 					tsim.setSwitch((int)switches[3].getX(), (int)switches[3].getY(), LEFT);
 					setDualLaneDirection(LEFT);
@@ -385,15 +370,14 @@ public class Lab1
 		 * 	Set direction on the dual lane to introduce some asymmetry to avoid deadlocks etc.
 		 * E.g. if Train 1 aquires the dualLane semaphore it will run on the upper lane and Train 2 on the lower lane
 		 *
-		 * @throws  CommandException, InterruptedException
+		 * @throws  CommandException, InterruptedException, IllegalArgumentException
 		 **/
 		private void setDualLaneDirection(int direction) throws CommandException, InterruptedException
 		{
 			if ( direction != 1 && direction != 2)
 			{
-				System.out.println("INVALID DIRECTION"); 
-				System.exit(1);
-			}
+			  throw new IllegalArgumentException("Direction must be either 1 or 2");
+      }
 			if (dualLanes.tryAcquire()) 
 			{
 				if (direction == RIGHT) tsim.setSwitch((int)switches[1].getX(), (int)switches[1].getY(), RIGHT);
@@ -419,8 +403,8 @@ public class Lab1
 			System.out.println("homelower: " + homeLower.availablePermits());
 			System.out.println("crossing: " + crossing.availablePermits()); 		
 			System.out.println("dualLines: " + dualLanes.availablePermits());
-			System.out.println("alt1: " + alt1.availablePermits());
-			System.out.println("alt2: " + alt2.availablePermits());
+			/* System.out.println("alt1: " + alt1.availablePermits()); */
+			/* System.out.println("alt2: " + alt2.availablePermits()); */
 			System.out.println("\n\n");
 		}
 	}
