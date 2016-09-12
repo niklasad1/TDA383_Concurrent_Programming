@@ -1,5 +1,4 @@
-import TSim.*;
-
+import TSim.*; 
 import java.util.concurrent.*;
 import java.awt.Point;
 
@@ -34,6 +33,7 @@ public class Lab1
 		// Lower
 		new SensorEvent(-1, 7, 9, SensorEvent.INACTIVE),
 		new SensorEvent(-1, 7, 10, SensorEvent.INACTIVE),
+		new SensorEvent(-1, 1, 10, SensorEvent.INACTIVE),
 		new SensorEvent(-1, 5, 11, SensorEvent.INACTIVE),
 		new SensorEvent(-1, 5, 13, SensorEvent.INACTIVE)
 	};
@@ -50,13 +50,13 @@ public class Lab1
 
 	private final static Semaphore homeUpper1 = new Semaphore(0);
 	private final static Semaphore homeUpper2 = new Semaphore(1);
+  private final static Semaphore mergeLow = new Semaphore(1);
 	private final static Semaphore homeLower = new Semaphore(0);
-	private final static Semaphore crossing = new Semaphore(1);
+  private final static Semaphore crossing = new Semaphore(1);
 	private final static Semaphore mid = new Semaphore(1);
 	private final static Semaphore dualLanes = new Semaphore(1);
-//	private final static Semaphore alt1 = new Semaphore(1);
-//	private final static Semaphore alt2 = new Semaphore(1);
-	
+
+
 	public Lab1(Integer speed1, Integer speed2) 
 	{
 		// create two objects that execute in individual thread
@@ -175,7 +175,8 @@ public class Lab1
 		 * @return true if the SensorEvents are equal
 		 * 									false if the SensorEvents are not equal
 		 **/
-		private boolean sensorEventEquals(SensorEvent s1, SensorEvent s2) {
+		private boolean sensorEventEquals(SensorEvent s1, SensorEvent s2) 
+    {
 			if (s1.getXpos() == s2.getXpos() && s1.getYpos() == s2.getYpos()) return true;
 			else return false;
 		}
@@ -203,7 +204,7 @@ public class Lab1
 		private void changeDirection() throws CommandException, InterruptedException
 		{
 			tsim.setSpeed(this.trainID, 0);
-			sleep(1000 + (20 * this.trainSpeed));
+			sleep(2000 + (20 * this.trainSpeed));
 			// change direction
 			this.direction = (this.direction == LEFT) ? RIGHT : LEFT;
 			this.trainSpeed = (this.trainSpeed > 0) ? -this.trainSpeed : Math.abs(this.trainSpeed);
@@ -237,11 +238,12 @@ public class Lab1
 
 			if (sensor.getStatus() == SensorEvent.ACTIVE) 
       {
-				// Station EVENT
+				// UpperStation EVENT
 				if (isUpperStationEvent(sensor))
 				{
 					if (this.direction == LEFT) changeDirection();
 				}
+        // LowerStation Event
 				else if (isLowerStationEvent(sensor))
 				{
 					if (this.direction == RIGHT) changeDirection();
@@ -267,12 +269,10 @@ public class Lab1
 			{
 				if (sensorEventEquals(sensor, senseEvent[0]) || sensorEventEquals(sensor, senseEvent[1]))
 				{
-					semaStatus();
 					requestSemaphore(crossing);
 				}     
 				else if (sensorEventEquals(sensor, senseEvent[2]) ||  sensorEventEquals(sensor, senseEvent[3])   )
 				{
-					semaStatus();
 					crossing.release();
 				}
 				else if (sensorEventEquals(sensor, senseEvent[4]))
@@ -296,14 +296,32 @@ public class Lab1
 				
         else if (sensorEventEquals(sensor, senseEvent[9]))
 				{
-					requestSemaphore(homeLower);
+					requestSemaphore(mergeLow);
 					tsim.setSwitch((int)switches[2].getX(), (int)switches[2].getY(), LEFT);
 					dualLanes.release();
 				}
-				else if (sensorEventEquals(sensor, senseEvent[10]))
+				
+        else if (sensorEventEquals(sensor, senseEvent[10]))
 				{
-					requestSemaphore(homeLower);
+					requestSemaphore(mergeLow);
 					tsim.setSwitch((int)switches[2].getX(), (int)switches[2].getY(), RIGHT);
+				}     
+				
+        else if (sensorEventEquals(sensor, senseEvent[11]))
+				{
+					if (homeLower.tryAcquire()) 
+          {
+					  tsim.setSwitch((int)switches[3].getX(), (int)switches[3].getY(), LEFT);
+          }
+          else 
+          {
+					  tsim.setSwitch((int)switches[3].getX(), (int)switches[3].getY(), RIGHT);
+          }
+				}     
+
+				else if (sensorEventEquals(sensor, senseEvent[12]) || sensorEventEquals(sensor, senseEvent[13]))
+				{
+          mergeLow.release();
 				}     
 			}
 
@@ -325,19 +343,18 @@ public class Lab1
 
 				else if (sensorEventEquals(sensor, senseEvent[6]))
 				{
-					if (homeUpper1.tryAcquire()) 
+					if (homeUpper2.tryAcquire()) 
 					{
-						tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), RIGHT);
+						tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), LEFT);
 					}
 					else 
 					{
-						homeUpper2.tryAcquire(); 
-						tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), LEFT);
+						homeUpper1.tryAcquire(); 
+						tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), RIGHT);
 					}
 				}
 				else if (sensorEventEquals(sensor, senseEvent[7]))
 				{
-					semaStatus();
 					requestSemaphore(mid);
 					tsim.setSwitch((int)switches[1].getX(), (int)switches[1].getY(), RIGHT);
 					dualLanes.release();
@@ -349,20 +366,26 @@ public class Lab1
 				}
 				else if (sensorEventEquals(sensor, senseEvent[9]) || sensorEventEquals(sensor, senseEvent[10]))
 				{
-					homeLower.release();
+					mergeLow.release();
 				}
 				
         else if (sensorEventEquals(sensor, senseEvent[11]))
 				{
-					tsim.setSwitch((int)switches[3].getX(), (int)switches[3].getY(), LEFT);
 					setDualLaneDirection(LEFT);
 				}
 				
         else if (sensorEventEquals(sensor, senseEvent[12]))
 				{
-					tsim.setSwitch((int)switches[3].getX(), (int)switches[3].getY(), LEFT);
-					setDualLaneDirection(LEFT);
-				}
+          requestSemaphore(mergeLow);
+          homeLower.release();
+          tsim.setSwitch((int)switches[3].getX(), (int)switches[3].getY(), LEFT);
+        }
+        
+        else if (sensorEventEquals(sensor, senseEvent[13]))
+				{
+					requestSemaphore(mergeLow);
+          tsim.setSwitch((int)switches[3].getX(), (int)switches[3].getY(), RIGHT);
+        }
 			}
 		}  
 		
@@ -389,27 +412,5 @@ public class Lab1
 				else tsim.setSwitch((int)switches[2].getX(), (int)switches[2].getY(), RIGHT);
 			}
 		}
-		
-		
-		/**
-		 * 	Unecessary for debugging
-		 *
-		 **/
-		public void semaStatus() 
-		{
-			System.out.println("\n\n");
-			System.out.println("homeUpper1: " + homeUpper1.availablePermits());
-			System.out.println("homeUpper2: " + homeUpper2.availablePermits());
-			System.out.println("homelower: " + homeLower.availablePermits());
-			System.out.println("crossing: " + crossing.availablePermits()); 		
-			System.out.println("dualLines: " + dualLanes.availablePermits());
-			/* System.out.println("alt1: " + alt1.availablePermits()); */
-			/* System.out.println("alt2: " + alt2.availablePermits()); */
-			System.out.println("\n\n");
-		}
 	}
 }
-
-
-
-
