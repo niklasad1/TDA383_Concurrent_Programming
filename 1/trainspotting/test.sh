@@ -14,8 +14,8 @@ echo "STARTING TESTS"
 OUTPUT_DIR=tests
 FILES=$PWD/$OUTPUT_DIR/*
 TEST_PASS=""
-# mkdir -p $OUTPUT_DIR
-#
+mkdir -p $OUTPUT_DIR
+
 for (( i=10; i<16; i++ )); do
   for (( j=10; j <16; j++ )); do
     filename="$OUTPUT_DIR/log.$i-$j"
