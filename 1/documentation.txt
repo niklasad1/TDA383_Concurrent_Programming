@@ -1,0 +1,43 @@
+Documentation. In addition to working code you need to provide a convincing argument why your solution is correct. You must document your solution with an ASCII text file. Give a high-level description of your program and then go into detail about all pieces of code that are essential for correctness. The documentation should include everything needed for easy understanding of the solution. In particular we demand that your documentation contains discussion of:
+
+Placement of the sensors:
+1. We placed 4 sensors to detect when a train has reached home i.e. to stop the
+train and change the direction. 2 sensors for the upperstation and 2 sensor for
+the lower station
+2. We placed 4 sensors around the crossing the make sure only one train is
+allowed to pass the crossing on the upperstation.
+3. We placed 3 sensors around the most upper switch. To ensure that only one
+train is allowed to go on the single lane and toggle the switches accordingly. Also to set direction on the dual lane.
+4. We placed 4 on the dual lane to ensure no collisions and to toggle the
+switches accordingly.
+5. We placed 1 sensor between the two lower swiches to set the dual lane
+direction, make only 1 train can be on the single lan and to decide to go the
+shortest or longest part.
+6. We placed 2 sensors at lowest switch to make only one train can traverse the
+single lane and toggle the switch accordingly.
+
+Choice of critical sections
+1. homeUpper1 - start point for the upper train the whole way until the most
+upper switch
+2. homeUpper2 - the whole lane from the most upper switch to the other home or
+the shortest path.
+3. crossing - the crossing between homeUpper1 and homeUpper2
+4. mid - single lane between the most upper switch and the second most upper
+switch
+5. dualLane - semaphore to set direction on the dual lane i.e. the train the
+gets the semaphore gets the shortest path and the other train has to take the
+longer path.
+6. mergeLow - single lane between the lowest switch and second lowest switch
+7. homeLower - indicate shortest path at the lower station
+
+Maximum train speed and the reason for it
+We say 15 because we have tested up to 15 it seem to work up 20 but higher would
+not work considering the placement of the sensors.
+
+How you tested your solution
+We wrote a shell script to test all combinations between 10-15 and executed it
+for 10 minutes each and then parsed the output logs for "errors". Note that the
+tests will not find the deadlocks.
+
+
+
