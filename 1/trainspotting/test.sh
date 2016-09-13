@@ -1,38 +1,50 @@
 #!/bin/bash
+
+#==============================================================================
 #decription     	: build and run Lab1
 #author		 				: niklasad1
-#date            	: 2016-09-06
+#date            	: 2016-09-12
 #version         	: 1.0   
 #filename		 			: run.sh
-#notes           	: N/A
+#notes           	: Tests each combination for 10 minutes and searches through the output for error messages
 #arguments	    	: TODO
 #==============================================================================
 
-echo "STRESS TEST"
-FILES=$PWD/tests/*
-#  TEST COMBINATIONS 10-15 SPEED 
-#  RUN TIME 10 min then exit
-
+echo "STARTING TESTS"
+OUTPUT_DIR=tests
+FILES=$PWD/$OUTPUT_DIR/*
+TEST_PASS=""
+# mkdir -p $OUTPUT_DIR
+#
 for (( i=10; i<16; i++ )); do
   for (( j=10; j <16; j++ )); do
-    filename="tests/log.$i-$j"
+    filename="$OUTPUT_DIR/log.$i-$j"
     echo $filename
     java -cp bin Main Lab1.map $i $j > "$filename" 2>&1 &
-    sleep 10m
   done
+  sleep 10m
+  killall -9 java
 done
 
 for f in $FILES
 do
   b=${f##*/}  
-  echo "Proccessing file $b"
-  dmy=$(cat $f | grep -i 'error')
+  # echo "Proccessing file $b"
+  dmy=$(cat "$f" | grep -i 'error')
   if [[ -n "$dmy" ]]; 
   then
-    echo "TEST $b FAILED"
+    echo "TEST "$b" FAILED"
+    TEST_PASS="FAIL"
   fi
 done
 
-
-
-
+if [[ -z "$TEST_PASS" ]];
+then
+  echo "=============================================================================="
+  echo "TESTS PASSED!!!!"
+  echo "=============================================================================="
+else
+  echo "=============================================================================="
+  echo "TESTS FAILED"
+  echo "=============================================================================="
+fi
