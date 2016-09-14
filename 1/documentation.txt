@@ -45,9 +45,25 @@ depending on the particular situation (which switch, which part
 of the track, etc.).
 
 How you tested your solution
-We wrote a shell script to test all combinations between 10-15 and executed it
+We wrote a shell script to test all combinations between 6-15 and executed it
 for 10 minutes each and then parsed the output logs for "errors". Note that the
-tests will not find the deadlocks.
+tests will not find the deadlocks. We attached the test script in the submission
+as well.
 
 
+Correctness:
+
+  Mutual Exclusion
+  It is satisfied by using sempaphores so only one train is allowed in the
+  critical section at the time
+
+  Freedom From Deadlock
+  Every time we leave the critical section we release the semaphore and because
+  of that we can't get circular wait i.e. both trains hold a semaphore but wait
+  for another.
+
+  Freedom from (individual) starvation
+  The trains will eventually get the resource and because we only have two
+  trains we can at most have one train waiting thus when the one train releases
+  the resource that other train will get it.
 
