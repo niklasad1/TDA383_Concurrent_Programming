@@ -44,7 +44,6 @@ to. This will lead to either train collision or eventual deadlock,
 depending on the particular situation (which switch, which part 
 of the track, etc.).
 
-
 How you tested your solution
 We wrote a shell script to test all combinations between 10-15 and executed it
 for 10 minutes each and then parsed the output logs for "errors". Note that the
