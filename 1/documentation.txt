@@ -32,7 +32,18 @@ longer path.
 
 Maximum train speed and the reason for it
 We say 15 because we have tested up to 15 it seem to work up 20 but higher would
-not work considering the placement of the sensors.
+not work considering the placement of the sensors. 
+The maximum speed for the trains is dependent on the distances between sensors
+and switches. This is because when a train is ordered to stop
+(or, equivalently, the tsi.setSpeed(...) is called with speed argument zero)
+there is an inherent displacement from the moment
+tsi.setSpeed(trainId,0) is called to when the train has actually stopped.
+If the train speed is too high, it might stop on the switch, and later
+when the same switch is called to switch direction, tsim won't be able
+to. This will lead to either train collision or eventual deadlock,
+depending on the particular situation (which switch, which part 
+of the track, etc.).
+
 
 How you tested your solution
 We wrote a shell script to test all combinations between 10-15 and executed it
