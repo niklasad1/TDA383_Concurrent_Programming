@@ -49,13 +49,13 @@ public class Lab2
 	};
 
 	// REPLACE THIS WITH MONITORS
-	private final static Semaphore homeUpper1 = new Semaphore(0);
-	private final static Semaphore homeUpper2 = new Semaphore(1);
-  	private final static Semaphore mergeLow = new Semaphore(1);
-	private final static Semaphore homeLower = new Semaphore(0);
- 	private final static Semaphore crossing = new Semaphore(1);
-	private final static Semaphore mid = new Semaphore(1);
-	private final static Semaphore dualLanes = new Semaphore(1);
+	private final static TrackMonitor homeUpper1 = new TrackMonitor("homeUpper1", 0);
+	private final static TrackMonitor homeUpper2 = new TrackMonitor("homeupper2", 1);
+  private final static TrackMonitor mergeLow = new TrackMonitor("mergeLow", 1);
+	private final static TrackMonitor homeLower = new TrackMonitor("homeLower", 0);
+ 	private final static TrackMonitor crossing = new TrackMonitor("crossing", 1);
+	private final static TrackMonitor mid = new TrackMonitor("mid", 1);
+	private final static TrackMonitor dualLanes = new TrackMonitor("dualLanes", 1);
 
 
 	public Lab2(Integer speed1, Integer speed2) 
@@ -217,10 +217,10 @@ public class Lab2
 		 *
 		 * @throws  CommandException, InterruptedException
 		 **/
-		private void requestSemaphore(Semaphore s) throws CommandException, InterruptedException {
+		private void requestMonitor(TrackMonitor t) throws CommandException, InterruptedException {
 			// may block
 			tsim.setSpeed(this.trainID, 0);
-			s.acquire();
+			t.enter();
 			tsim.setSpeed(this.trainID, this.trainSpeed);
 		}
 
@@ -270,41 +270,41 @@ public class Lab2
 			{
 				if (sensorEventEquals(sensor, senseEvent[0]) || sensorEventEquals(sensor, senseEvent[1]))
 				{
-					requestSemaphore(crossing);
+					requestMonitor(crossing);
 				}     
 				else if (sensorEventEquals(sensor, senseEvent[2]) ||  sensorEventEquals(sensor, senseEvent[3])   )
 				{
-					crossing.release();
+					crossing.leave();
 				}
 				else if (sensorEventEquals(sensor, senseEvent[4]))
 				{
-					requestSemaphore(mid);
-					homeUpper1.release();
+					requestMonitor(mid);
+					homeUpper1.leave();
 					tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), RIGHT);
 					setDualLaneDirection(RIGHT);
 				}    
 				else if (sensorEventEquals(sensor, senseEvent[5]))
 				{
-					requestSemaphore(mid);
-					homeUpper2.release();
+					requestMonitor(mid);
+					homeUpper2.leave();
 					tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), LEFT);
 					setDualLaneDirection(RIGHT);
 				}
 				else if (sensorEventEquals(sensor, senseEvent[7]) || (sensorEventEquals(sensor, senseEvent[8])))
 				{
-					mid.release();
+					mid.leave();
 				}
 				
         else if (sensorEventEquals(sensor, senseEvent[9]))
 				{
-					requestSemaphore(mergeLow);
+					requestMonitor(mergeLow);
 					tsim.setSwitch((int)switches[2].getX(), (int)switches[2].getY(), LEFT);
-					dualLanes.release();
+					dualLanes.leave();
 				}
 				
         else if (sensorEventEquals(sensor, senseEvent[10]))
 				{
-					requestSemaphore(mergeLow);
+					requestMonitor(mergeLow);
 					tsim.setSwitch((int)switches[2].getX(), (int)switches[2].getY(), RIGHT);
 				}     
 				
@@ -322,7 +322,7 @@ public class Lab2
 
 				else if (sensorEventEquals(sensor, senseEvent[12]) || sensorEventEquals(sensor, senseEvent[13]))
 				{
-          mergeLow.release();
+          mergeLow.leave();
 				}     
 			}
 
@@ -331,15 +331,15 @@ public class Lab2
 			{
 				if (sensorEventEquals(sensor, senseEvent[0]) || sensorEventEquals(sensor, senseEvent[1]))
 				{
-					crossing.release();
+					crossing.leave();
 				}
 				else if (sensorEventEquals(sensor, senseEvent[2]) || sensorEventEquals(sensor, senseEvent[3]))
 				{
-					requestSemaphore(crossing);
+					requestMonitor(crossing);
 				}
 				else if (sensorEventEquals(sensor, senseEvent[4]) || sensorEventEquals(sensor, senseEvent[5]))
 				{
-					mid.release();
+					mid.leave();
 				}
 
 				else if (sensorEventEquals(sensor, senseEvent[6]))
@@ -356,18 +356,18 @@ public class Lab2
 				}
 				else if (sensorEventEquals(sensor, senseEvent[7]))
 				{
-					requestSemaphore(mid);
+					requestMonitor(mid);
 					tsim.setSwitch((int)switches[1].getX(), (int)switches[1].getY(), RIGHT);
-					dualLanes.release();
+					dualLanes.leave();
 				}
 				else if (sensorEventEquals(sensor, senseEvent[8]))
 				{
-					requestSemaphore(mid);
+					requestMonitor(mid);
 					tsim.setSwitch((int)switches[1].getX(), (int)switches[1].getY(), LEFT);
 				}
 				else if (sensorEventEquals(sensor, senseEvent[9]) || sensorEventEquals(sensor, senseEvent[10]))
 				{
-					mergeLow.release();
+					mergeLow.leave();
 				}
 				
         else if (sensorEventEquals(sensor, senseEvent[11]))
@@ -377,14 +377,14 @@ public class Lab2
 				
         else if (sensorEventEquals(sensor, senseEvent[12]))
 				{
-          requestSemaphore(mergeLow);
-          homeLower.release();
+          requestMonitor(mergeLow);
+          homeLower.leave();
           tsim.setSwitch((int)switches[3].getX(), (int)switches[3].getY(), LEFT);
         }
         
         else if (sensorEventEquals(sensor, senseEvent[13]))
 				{
-					requestSemaphore(mergeLow);
+					requestMonitor(mergeLow);
           tsim.setSwitch((int)switches[3].getX(), (int)switches[3].getY(), RIGHT);
         }
 			}
