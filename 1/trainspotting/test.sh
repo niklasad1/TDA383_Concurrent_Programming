@@ -16,11 +16,11 @@ FILES=$PWD/$OUTPUT_DIR/*
 TEST_PASS=""
 mkdir -p $OUTPUT_DIR
 
-for (( i=5; i<16; i++ )); do
-  for (( j=5; j <16; j++ )); do
+for (( i=1; i<16; i++ )); do
+  for (( j=1; j <16; j++ )); do
     filename="$OUTPUT_DIR/log.$i-$j"
     echo $filename
-    java -cp bin Main Lab1.map $i $j > "$filename" 2>&1 &
+    java -cp bin Main Lab1.map $i $j 1 > "$filename" 2>&1 &
   done
   sleep 10m
   killall -9 java
