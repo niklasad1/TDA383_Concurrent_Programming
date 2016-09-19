@@ -8,33 +8,33 @@ public class TrackMonitor
   // used mostly for debugging
   private String name;
 	private final Condition mutex = lock.newCondition();
-	private int permits; 
+	private int token; 
 	
 	public TrackMonitor()
 	{
-		this.permits = 1;
+		this.token = 1;
 	}
 	
-	public TrackMonitor(String name, int permits)
+	public TrackMonitor(String name, int token)
 	{
-		if (permits < 0 || permits > 1) throw new IllegalArgumentException("Permit must be either 0 or 1");
-		this.permits = permits;
+		if (this.token < 0 || this.token > 1) throw new IllegalArgumentException("Permit must be either 0 or 1");
+		this.token = token;
 	}
 	
 	
 	public void enter() throws InterruptedException
 	{
-		if (this.permits < 0 || this.permits > 1) throw new IllegalArgumentException("Permit must be either 0 or 1");
+		if (this.token < 0 || this.token > 1) throw new IllegalArgumentException("Permit must be either 0 or 1");
     try 
 		{
 			lock.lock();
 			/* Wait until permit is at least 1 i.e. allowed to enter */
-			while (this.permits < 1)
+			while (this.token < 1)
 			{
 				mutex.await();
 			}
 			/* Got the conditional variable */
-			this.permits--;
+			this.token--;
 		}
 		catch (InterruptedException e) 
 		{
@@ -49,21 +49,21 @@ public class TrackMonitor
 	
 	public void leave()
 	{
-			if (permits != 0) throw new IllegalArgumentException("Permit must be ZERO to leave");
+			if (this.token != 0) throw new IllegalArgumentException("Permit must be ZERO to leave");
 			lock.lock();
-			this.permits++;
+			this.token++;
 			mutex.signal();
       lock.unlock();
 	}
 	
 	public boolean tryAcquire()
 	{
-		if (permits < 0 || permits > 1) throw new IllegalArgumentException("Permit must be either 0 or 1");
+		if (this.token < 0 || this.token > 1) throw new IllegalArgumentException("Permit must be either 0 or 1");
     lock.lock();
 		boolean ret = false;
-		if (this.permits == 1)
+		if (this.token == 1)
 		{
-			this.permits--;
+			this.token--;
 			ret = true;
 		}
 		lock.unlock();
@@ -72,6 +72,6 @@ public class TrackMonitor
 
  private void Debug(String func)
  {
-  System.out.println(func + " " + name + " Permit: " + this.permits);
+  System.out.println(func + " " + name + " Permit: " + this.token);
  }
 }
