@@ -19,6 +19,7 @@ public class TrackMonitor
 	{
 		if (this.token < 0 || this.token > 1) throw new IllegalArgumentException("Permit must be either 0 or 1");
 		this.token = token;
+    this.name = name;
 	}
 	
 	
@@ -28,8 +29,9 @@ public class TrackMonitor
     try 
 		{
 			lock.lock();
-			/* Wait until permit is at least 1 i.e. allowed to enter */
-			while (this.token < 1)
+			Debug("enter()");
+      /* Wait until permit is at least 1 i.e. allowed to enter */
+			while (this.token != 1) 
 			{
 				mutex.await();
 			}
@@ -51,6 +53,7 @@ public class TrackMonitor
 	{
 			if (this.token != 0) throw new IllegalArgumentException("Permit must be ZERO to leave");
 			lock.lock();
+		  Debug("leave()");
 			this.token++;
 			mutex.signal();
       lock.unlock();
@@ -60,7 +63,8 @@ public class TrackMonitor
 	{
 		if (this.token < 0 || this.token > 1) throw new IllegalArgumentException("Permit must be either 0 or 1");
     lock.lock();
-		boolean ret = false;
+		Debug("tryAcquire");
+    boolean ret = false;
 		if (this.token == 1)
 		{
 			this.token--;
@@ -72,6 +76,6 @@ public class TrackMonitor
 
  private void Debug(String func)
  {
-  System.out.println(func + " " + name + " Permit: " + this.token);
+  System.out.println(func + " " + this.name + " Permit: " + this.token);
  }
 }

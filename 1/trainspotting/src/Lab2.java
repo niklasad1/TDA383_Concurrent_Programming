@@ -20,10 +20,10 @@ public class Lab2
 	// Critical Events
 	private final static SensorEvent[] senseEvent = new SensorEvent[] {
 		// Crossing Upper Station
-		new SensorEvent(-1, 6, 6, SensorEvent.INACTIVE),
-		new SensorEvent(-1, 8, 5, SensorEvent.INACTIVE),
-		new SensorEvent(-1, 10, 7, SensorEvent.INACTIVE),
-		new SensorEvent(-1, 10, 8, SensorEvent.INACTIVE),
+		new SensorEvent(-1, 6, 4, SensorEvent.INACTIVE),
+		new SensorEvent(-1, 9, 5, SensorEvent.INACTIVE),
+		new SensorEvent(-1, 11, 7, SensorEvent.INACTIVE),
+		new SensorEvent(-1, 11, 8, SensorEvent.INACTIVE),
 		// MIddle Crossing
 		new SensorEvent(-1, 14, 7, SensorEvent.INACTIVE),
 		new SensorEvent(-1, 14, 8, SensorEvent.INACTIVE),
@@ -33,14 +33,14 @@ public class Lab2
 		// Lower
 		new SensorEvent(-1, 7, 9, SensorEvent.INACTIVE),
 		new SensorEvent(-1, 7, 10, SensorEvent.INACTIVE),
-		new SensorEvent(-1, 1, 10, SensorEvent.INACTIVE),
-		new SensorEvent(-1, 5, 11, SensorEvent.INACTIVE),
-		new SensorEvent(-1, 5, 13, SensorEvent.INACTIVE)
+		new SensorEvent(-1, 1, 9, SensorEvent.INACTIVE),
+		new SensorEvent(-1, 6, 11, SensorEvent.INACTIVE),
+		new SensorEvent(-1, 6, 13, SensorEvent.INACTIVE)
 	};
 
 	private final static SensorEvent[] upperHomeEvent = new SensorEvent[] {
-		new SensorEvent(-1, 11, 3, SensorEvent.INACTIVE),
-		new SensorEvent(-1, 11, 5, SensorEvent.INACTIVE)
+		new SensorEvent(-1, 12, 3, SensorEvent.INACTIVE),
+		new SensorEvent(-1, 12, 5, SensorEvent.INACTIVE)
 	};
 
 	private final static SensorEvent[] lowerHomeEvent = new SensorEvent[] {
@@ -50,9 +50,10 @@ public class Lab2
 
 	// REPLACE THIS WITH MONITORS
 	private final static TrackMonitor homeUpper1 = new TrackMonitor("homeUpper1", 0);
-	private final static TrackMonitor homeUpper2 = new TrackMonitor("homeupper2", 1);
-  private final static TrackMonitor mergeLow = new TrackMonitor("mergeLow", 1);
 	private final static TrackMonitor homeLower = new TrackMonitor("homeLower", 0);
+
+  private final static TrackMonitor homeUpper2 = new TrackMonitor("homeUpper2", 1);
+  private final static TrackMonitor mergeLow = new TrackMonitor("mergeLow", 1);
  	private final static TrackMonitor crossing = new TrackMonitor("crossing", 1);
 	private final static TrackMonitor mid = new TrackMonitor("mid", 1);
 	private final static TrackMonitor dualLanes = new TrackMonitor("dualLanes", 1);
@@ -270,10 +271,12 @@ public class Lab2
 			{
 				if (sensorEventEquals(sensor, senseEvent[0]) || sensorEventEquals(sensor, senseEvent[1]))
 				{
-					requestMonitor(crossing);
+					System.out.println(this.trainID + "requestCROSSING");
+          requestMonitor(crossing);
 				}     
 				else if (sensorEventEquals(sensor, senseEvent[2]) ||  sensorEventEquals(sensor, senseEvent[3])   )
 				{
+					System.out.println(this.trainID + "releaseCROSSING");
 					crossing.leave();
 				}
 				else if (sensorEventEquals(sensor, senseEvent[4]))
@@ -281,14 +284,16 @@ public class Lab2
 					requestMonitor(mid);
 					homeUpper1.leave();
 					tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), RIGHT);
-					setDualLaneDirection(RIGHT);
+          System.out.println("SET DUALLANE RIGHT");
+          setDualLaneDirection(RIGHT);
 				}    
 				else if (sensorEventEquals(sensor, senseEvent[5]))
 				{
 					requestMonitor(mid);
 					homeUpper2.leave();
 					tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), LEFT);
-					setDualLaneDirection(RIGHT);
+          System.out.println("SET DUALLANE RIGHT");
+          setDualLaneDirection(RIGHT);
 				}
 				else if (sensorEventEquals(sensor, senseEvent[7]) || (sensorEventEquals(sensor, senseEvent[8])))
 				{
@@ -372,7 +377,8 @@ public class Lab2
 				
         else if (sensorEventEquals(sensor, senseEvent[11]))
 				{
-					setDualLaneDirection(LEFT);
+					System.out.println("set DUALLANE LEFT");
+          setDualLaneDirection(LEFT);
 				}
 				
         else if (sensorEventEquals(sensor, senseEvent[12]))
