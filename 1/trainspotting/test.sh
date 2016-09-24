@@ -21,9 +21,9 @@ for (( i=1; i<16; i++ )); do
     filename="$OUTPUT_DIR/log.$i-$j"
     echo $filename
     java -cp bin Main Lab1.map $i $j 1 > "$filename" 2>&1 &
+    sleep 1m
+    killall -9 java
   done
-  sleep 10m
-  killall -9 java
 done
 
 for f in $FILES
