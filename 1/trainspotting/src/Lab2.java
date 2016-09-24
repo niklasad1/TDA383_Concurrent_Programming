@@ -271,12 +271,10 @@ public class Lab2
 			{
 				if (sensorEventEquals(sensor, senseEvent[0]) || sensorEventEquals(sensor, senseEvent[1]))
 				{
-					System.out.println(this.trainID + "requestCROSSING");
           requestMonitor(crossing);
 				}     
 				else if (sensorEventEquals(sensor, senseEvent[2]) ||  sensorEventEquals(sensor, senseEvent[3])   )
 				{
-					System.out.println(this.trainID + "releaseCROSSING");
 					crossing.leave();
 				}
 				else if (sensorEventEquals(sensor, senseEvent[4]))
@@ -284,7 +282,6 @@ public class Lab2
 					requestMonitor(mid);
 					homeUpper1.leave();
 					tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), RIGHT);
-          System.out.println("SET DUALLANE RIGHT");
           setDualLaneDirection(RIGHT);
 				}    
 				else if (sensorEventEquals(sensor, senseEvent[5]))
@@ -292,7 +289,6 @@ public class Lab2
 					requestMonitor(mid);
 					homeUpper2.leave();
 					tsim.setSwitch((int)switches[0].getX(), (int)switches[0].getY(), LEFT);
-          System.out.println("SET DUALLANE RIGHT");
           setDualLaneDirection(RIGHT);
 				}
 				else if (sensorEventEquals(sensor, senseEvent[7]) || (sensorEventEquals(sensor, senseEvent[8])))
@@ -377,7 +373,6 @@ public class Lab2
 				
         else if (sensorEventEquals(sensor, senseEvent[11]))
 				{
-					System.out.println("set DUALLANE LEFT");
           setDualLaneDirection(LEFT);
 				}
 				
