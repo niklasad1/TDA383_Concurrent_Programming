@@ -17,7 +17,8 @@ in(TS, Pattern) ->
   Ref = make_ref(),
   TS ! {self(), Ref, Pattern},
   receive
-    X -> io:fwrite("in() recv:")
+    {From, Ref, "ACK"} -> io:fwrite("ACK From ~p Ref ~p~n", [From, Ref]);
+    _ -> io:fwrite("UN-EXPECTED RESPONSE~n")
   end.
 
 % puts Tuple into the tuplespace TS.
@@ -53,7 +54,7 @@ loop() ->
   receive
     {From, Ref, Data} -> 
       io:fwrite("recv: ~p ~p ~p ~n", [From, Ref, Data]),
-      From ! "ACK",
+      From ! {self(), Ref, "ACK"},
       loop()
   end.
 
