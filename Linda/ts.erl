@@ -5,15 +5,24 @@
 
 % returns the PID of a new (empty) tuplespace.
 new() -> 
-  todo.
+  Pid = spawn_link(fun() -> loop() end),
+  % may be unnecessary if we return the PID
+  catch(unregister(tsserver)),
+  register(tsserver, Pid),
+  Pid.
 
 % returns a tuple matching Pattern from tuplespace TS. Note that this operation
 % will block if there is no such tuple.
 in(TS, Pattern) ->
-  todo.
+  Ref = make_ref(),
+  TS ! {self(), Ref, Pattern},
+  receive
+    X -> io:fwrite("in() recv:")
+  end.
 
 % puts Tuple into the tuplespace TS.
 out(TS, Tuple) ->
+  Ref = make_ref(),
   todo.
 % --------------END------------------------------------------------------------------
 
@@ -37,3 +46,15 @@ match(P,P) -> true;
 match(_,_) -> false.
 
 % --------------END------------------------------------------------------------------
+ 
+% --------------OWN FUNCTIONS--------------------------------------------------------
+loop() ->
+  io:fwrite("loop() ~n"),
+  receive
+    {From, Ref, Data} -> 
+      io:fwrite("recv: ~p ~p ~p ~n", [From, Ref, Data]),
+      From ! "ACK",
+      loop()
+  end.
+
+
