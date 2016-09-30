@@ -1,38 +1,90 @@
 -module(ts).
--export([new/0, in/2, out/2]).
+-export([new/0,in/2,out/2,tuplespace/2,find/2, delete/2, match/2]).
 
-% -------------API/External Functions -----------------------------------------------
-
-% returns the PID of a new (empty) tuplespace.
-new() -> 
-  Pid = spawn_link(fun() -> loop([], []) end),
-  % may be unnecessary if we return the PID
-  catch(unregister(tsserver)),
-  register(tsserver, Pid),
-  Pid.
-
-% returns a tuple matching Pattern from tuplespace TS. Note that this operation
-% will block if there is no such tuple.
-in(TS, Tuple) ->
-  Ref = make_ref(),
-  TS ! {take,self(), Ref, Tuple},
+%Tuplespace
+tuplespace(CurrentList,QueueList) ->
   receive
-     {From, Take} -> io:fwrite("ACK From ~p Ref ~n", [From]);
-      _ -> io:fwrite("UN-EXPECTED RESPONSE~n")
+    {From, Ref, Pattern, takeout} ->
+
+      case find(CurrentList, Pattern) of
+        {found,Matched} ->
+          NewList= element(2,delete(CurrentList,Matched)),
+          NewQueueList=QueueList,
+          From ! {Matched, Ref};
+        {not_found,Matched} ->
+          NewQueueList= QueueList ++[{Pattern, From, Ref}],
+          NewList=CurrentList;
+        true ->
+          NewList=CurrentList,
+          NewQueueList=QueueList
+      end;
+    {From, Ref, Pattern, putin} ->
+      L=lists:keytake(Pattern, 1, QueueList),
+      case L of
+        {value, ExtractedElement, NewQueueList} ->
+          element(2,ExtractedElement) ! {element(1,ExtractedElement),element(3,ExtractedElement)},
+          NewList=CurrentList;
+        false ->
+          NewList = [Pattern|CurrentList],
+          NewQueueList = QueueList
+      end,
+      From! {Pattern,Ref};
+    true ->
+      NewList = CurrentList,
+      NewQueueList = QueueList
+  end,
+  tuplespace(NewList,NewQueueList).
+
+delete([First|Rest],A) ->
+  case match(A,First) of
+    true -> {value, Rest, First};
+    false -> [First|element(2,delete(Rest,A))]
+  end;
+delete([],A) ->
+  [].
+find([First|Rest], A) ->
+  case match(A,First) of
+    true ->
+      {found, First};
+    false ->
+      find(Rest,A)
+  end;
+find([],A) ->
+  {not_found,A}.
+
+
+%Returns the PID of a new tuplespace (the server)
+new() ->
+  spawn_link(ts2,tuplespace,[[],[]])
+  %io:format("~w tuplespace created~n",[L])
+
+
+  .
+% Wants to take out pattern into TS. Should block if the element Pattern
+% is not already in TS.
+in(TS,Pattern) ->
+  Ref = make_ref(),
+  TS ! {self(),Ref, Pattern, takeout},
+  receive
+    {Matched, Ref} ->
+      io:format("~w received ~w with reference ~w from ~w~n",[self(),Matched, Ref,TS]),
+      Pattern;
+    _ ->
+      io:format("Error in Pattern or reference received~n",[])
+  end
+  .
+
+% Wants to put in pattern from TS.
+out(TS, Pattern) ->
+  Ref = make_ref(),
+  TS ! {self(), Ref, Pattern, putin},
+  receive
+    {Pattern, Ref} ->
+      io:format("~w successfully gave ~w to ~w with reference:~w~n ",[self(), Pattern, TS, Ref]);
+    true ->
+      io:format("Some wrong happened :(", [])
   end.
 
-% puts Tuple into the tuplespace TS.
-out(TS, Tuple) ->
-  Ref = make_ref(),
-  TS ! {put, self(), Ref, Tuple},
-  receive
-    {From, Put} -> io:fwrite("REPLY ~p~n", [From]);
-    _ -> io:fwrite("UN-EXPECTED RESPONSE~n")
-  end.
-% --------------END------------------------------------------------------------------
-
-
-% -------------Internal Functions -----------------------------------------------
 
 match(any,_) -> true;
 
@@ -41,72 +93,12 @@ match(P,Q) when is_tuple(P), is_tuple(Q)
 
 
 match([P|PS],[L|LS]) -> case match(P,L) of
-                              true -> match(PS,LS);
-                              false -> false
-                         end;
+                          true -> match(PS,LS);
+                          false -> false
+                        end;
+
 
 match(P,P) -> true;
 
 
 match(_,_) -> false.
-
-% --------------END------------------------------------------------------------------
- 
-% --------------OWN FUNCTIONS--------------------------------------------------------
-loop(List, Queue) ->
-  io:fwrite("List ~p ~n", [List]),
-  receive
-    {put, From, Ref, Data} ->
-           NewList=tryPutData(List,Data,From,Ref),
-           reply(From, input);
-    {take, From, Ref, Data} ->
-           % if in list then remove and reply
-           % else wait and add to waiting queue   
-           NewList=tryTakeData(List,Data,From,Ref),
-           reply(From, take);
-    true -> io:format("WRONG FORMAT ~n"),
-            NewList=List
-  end,
-   loop(NewList, Queue).
-
-tryPutData(ServerData, Data,Pid, Ref) ->
-                       case find(ServerData,Data) of
-                                      not_found ->
-                                      io:format("~w added ~w to Server~n",[Pid,Data]),
-                            [{Data,Pid,Ref}|ServerData];
-                            found ->
-                                   io:format("~w failed to add ~w to Server~n",[Pid, Data]),
-                            ServerData
-                        end.
- tryTakeData(ServerData, Data, Pid, Ref) ->
-			case find(ServerData,Data) of
-			found ->
-			io:format("~w extracted ~w from Server~n", [Pid, Data]),
-			delete(ServerData,Data);
-			not_found ->
-			io:format("~w failed to extract ~w from Server",[Pid,Data]),
-			ServerData
-		        end.
-delete([First|Rest],A) ->
-                       if
-                                First==A ->
-                                      Rest;
-                                true ->
-                                     [First|delete(Rest,A)]
-                       end;
-
-delete([],A) ->
-             [].
-
-find([First|Rest], A) ->
-                   if
-                        First == A ->
-                              found;
-                        true ->
-                             find(Rest,A)
-                        end;
-find([],A) ->
-not_found.
-
-reply(Pid, Msg) ->
-         Pid ! {self(), Msg}.
