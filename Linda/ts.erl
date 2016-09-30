@@ -55,11 +55,13 @@ find([],A) ->
 
 %Returns the PID of a new tuplespace (the server)
 new() ->
-  spawn_link(ts2,tuplespace,[[],[]])
-  %io:format("~w tuplespace created~n",[L])
+  % spawn_link(ts2,tuplespace,[[],[]])
+  Pid = spawn_link(fun() -> tuplespace([], []) end),
+  % may be unnecessary if we return the PID
+  catch(unregister(ts)),
+  register(ts, Pid),
+  Pid.
 
-
-  .
 % Wants to take out pattern into TS. Should block if the element Pattern
 % is not already in TS.
 in(TS,Pattern) ->
