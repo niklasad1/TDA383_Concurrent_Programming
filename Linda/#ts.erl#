@@ -35,6 +35,8 @@ tuplespace(CurrentList,QueueList) ->
   end,
   tuplespace(NewList,NewQueueList).
 
+clearqueue(
+
 delete([First|Rest],A) ->
   case match(A,First) of
     true -> {value, Rest, First};
