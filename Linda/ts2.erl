@@ -1,7 +1,14 @@
 -module(ts2).
 -export([new/0,in/2,out/2,tuplespace/2, match/2, delete/2, find/2]).
 
-%Tuplespace
+% The tuplespace
+% CurrentList contains appended data from clients.
+% QueueList contains sought data from blocked clients. It also carry the reference number of the call from client
+% and the PID from the client.
+%
+% tuplespace reacts on message passing from clients. Upon request, it either supply the client
+% with the needed data or takes the data and stores it in CurrentList.
+
 tuplespace(CurrentList,QueueList) ->
      receive
           {From, Ref, Pattern, takeout} ->
@@ -40,6 +47,13 @@ tuplespace(CurrentList,QueueList) ->
        end,
 tuplespace(NewList,NewQueueList).
 
+
+% delete
+% When passed CurrentList, it will try to remove tuple A from it.
+% When passed QueueList, it will try to remove the tuple with first element corresponding
+% to the tuple A passed.
+% It works with wildcard any passed.
+
 delete([First={Data,_,_}|Rest],A) ->
        case match(A,Data) of
                true -> Rest;
@@ -51,6 +65,11 @@ delete([First|Rest],A) ->
 		false -> [First]++delete(Rest,A)
 		end;
 delete([],_) -> [].
+
+% find
+% When passed CurrentList, it will try find A in CurrentList. If it does, it returns {found, A}.
+% When passed QueueList, it will try find a tuple in the list with first element corresponding to A.
+% It works with wildcard any passed.
 
 find([First={Data,_,_}|Rest], A) ->
                    case match(Data,A) of
@@ -70,13 +89,16 @@ find([],A) ->
 {not_found,A}.
 
 
-%Returns the PID of a new tuplespace (the server)
+% new
+% Returns the PID of a new tuplespace (the server)
+
 new() ->
 spawn_link(ts2,tuplespace,[[],[]])
 %io:format("~w tuplespace created~n",[L])
 
 
 .
+% in
 % Wants to take out pattern into TS. Should block if the element Pattern
 % is not already in TS.
 in(TS,Pattern) ->
@@ -90,7 +112,9 @@ receive
 	     end
 .
 
+%out
 % Wants to put in pattern from TS.
+
 out(TS, Pattern) ->
 Ref = make_ref(),
 TS ! {self(), Ref, Pattern, putin},
@@ -101,6 +125,8 @@ receive
        io:format("Some wrong happened :(", [])
        end.
 
+% match
+% match function supplied for wildcard any checks.
 
 match(any,_) -> true;
 
