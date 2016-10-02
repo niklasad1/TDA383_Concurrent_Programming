@@ -1,5 +1,5 @@
 -module(ts).
--export([new/0,in/2,out/2,tuplespace/2, match/2, delete/2, find/2]).
+-export([new/0,in/2,out/2]).
 
 % The tuplespace
 % CurrentList contains appended data from clients.
@@ -106,7 +106,7 @@ new() ->
 % in
 % Wants to take out pattern into TS. Should block if the element Pattern
 % is not already in TS.
-in(TS,Pattern) ->
+in(TS,Pattern) when is_pid(TS), is_tuple(Pattern)->
 Ref = make_ref(),
 TS ! {self(),Ref, Pattern, takeout},
 receive
@@ -115,13 +115,14 @@ receive
 		  Matched;
          _ ->
 	      io:format("Error in Pattern or reference received~n",[])
-	     end
-.
+	     end;
 
+in(_,_) ->
+  incorrect_args.
 %out
 % Wants to put in pattern from TS.
 
-out(TS, Pattern) ->
+out(TS, Pattern) when is_pid(TS), is_tuple(Pattern) ->
 Ref = make_ref(),
 TS ! {self(), Ref, Pattern, putin},
 receive
@@ -129,7 +130,10 @@ receive
                io:format("~w successfully gave ~w to ~w with reference:~w~n ",[self(), Pattern, TS, Ref]);
        true ->
        io:format("Some wrong happened :(", [])
-       end.
+end;
+
+out(_,_)  ->
+  incorrect_args.
 
 % match
 % match function supplied for wildcard any checks.
