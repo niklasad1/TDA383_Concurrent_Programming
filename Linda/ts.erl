@@ -7,9 +7,9 @@
 % and the PID from the client.
 % tuplespace reacts on message passing from clients.
 % Given a client's request to take out a data, it will search through the
-% server's list of appended data in CurrentList and pass it to the client is possible,
+% server's list of appended data in CurrentList and pass it to the client if possible,
 % otherwise the request will be stored in the QueueList - including the PID of which
-% if was requested from and also the corresponding reference number.
+% it was requested from and also the corresponding reference number.
 % Given a client's request to put in a data, the server will search through the
 % QueueList if there is any candidates to pass it to, otherwise it will be
 % appended in CurrentList for later usage.
