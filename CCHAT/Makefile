@@ -2,6 +2,10 @@ all: *.erl *.hrl lex.xrl grm.yrl
 	erl -compile *.erl
 	erl -pa ebin -eval "lexgrm:start(), halt()" -noshell -detached
 
+debug: *.erl *.hrl lex.xrl grm.yrl
+	erlc -Ddebug *.erl
+	erl -pa ebin -eval "lexgrm:start(), halt()" -noshell -detached
+
 clean:
 	rm -f *.beam grm.erl lex.erl
 	rm -f *.dump

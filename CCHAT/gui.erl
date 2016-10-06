@@ -15,6 +15,11 @@
 
 -define(SYSTEM_NAME, "System").
 
+-ifdef(debug).
+-define(LOG(X), io:format("{~p,~p}: ~p~n", [?MODULE,?LINE,X])).
+-else.
+-define(LOG(X), true).
+-endif.
 
 % This record defines the structure of the
 % client process.
@@ -35,15 +40,17 @@
 
 start() ->
     Server = wx:new(),
+    ?LOG({"startGui",Server}),
     wx_object:start_link(?MODULE, Server, []).
 
 
 init(Server) ->
+    ?LOG({"initGUI",Server}),
     wx:batch(fun () ->
                      do_init(Server) end ).
 
 do_init(Server) ->
-
+    ?LOG({"do_initGUI",Server}),
     % It creates a unique name for the client and gui processes
     {ClientName, ClientID} = find_unique_name("client_", ?MAX_CONNECTIONS),
     {GUIName,_ }           = find_unique_name("gui_", ?MAX_CONNECTIONS),
@@ -103,6 +110,7 @@ handle_event(#wx{ event = #wxCommand{type = command_text_enter, cmdString = Item
          {connect_remote, Server, Machine} ->
             write_channel(with_label(ClientName, ?SYSTEM), "* "++"Trying to connect to "++Server++" in machine "++Machine++"..."),
             Result = catch_fatal (ClientName, Panel, fun () -> request(ClientName, {connect, {Server, Machine}}) end ),
+            ?LOG({guiCOnnectRemote,Server,Machine,Result}),
             case Result of
                  ok     -> write_channel(with_label(ClientName, ?SYSTEM), "+ Connected!") ;
                  error  -> ok
@@ -112,6 +120,7 @@ handle_event(#wx{ event = #wxCommand{type = command_text_enter, cmdString = Item
          {connect, Server} ->
             write_channel(with_label(ClientName, ?SYSTEM), "* "++"Trying to connect to "++Server++"..."),
             Result = catch_fatal (ClientName, Panel, fun () -> request(ClientName, {connect, Server}) end ),
+            ?LOG({guiConnect,Server,Result}),
             case Result of
                  ok     -> write_channel(with_label(ClientName, ?SYSTEM), "+ Connected!") ;
                  error  -> ok
@@ -120,6 +129,7 @@ handle_event(#wx{ event = #wxCommand{type = command_text_enter, cmdString = Item
          %% Disconnect from the server
          disconnect ->
             Result = catch_fatal (ClientName, Panel, fun () -> request(ClientName, disconnect) end ),
+            ?LOG({guiDisconnect,Result}),
             case Result of
                  ok    -> write_channel(with_label(ClientName, ?SYSTEM), "+ Disconnected") ;
                  error -> ok
@@ -128,6 +138,7 @@ handle_event(#wx{ event = #wxCommand{type = command_text_enter, cmdString = Item
          %% Joining a new channel
          {join, Channel}   ->
             Result = catch_fatal(ClientName, Panel, fun () -> request(ClientName, {join, Channel}) end ),
+            ?LOG({guiJoin,Channel,Result}),
             case Result of
                  ok -> write_channel(with_label(ClientName, ?SYSTEM), "+ Joined "++Channel),
                            Tab = create_tab(ClientName, Channel, "* Channel "++Channel),
@@ -137,14 +148,18 @@ handle_event(#wx{ event = #wxCommand{type = command_text_enter, cmdString = Item
 
          % /leave
          leave -> Channel = active_channel(with_label(ClientName,?NOTEBOOK)),
+                  ?LOG({guiLeave,Channel}),
                   leave_channel(ClientName, Panel, Channel) ;
 
          % /leave #channel
-         {leave, Channel} -> leave_channel(ClientName, Panel, Channel) ;
+         {leave, Channel} ->
+            ?LOG({guiLeaveChannel,Channel}),
+            leave_channel(ClientName, Panel, Channel) ;
 
          %% Sending a message
          {msg, String}     ->
             Channel = active_channel(with_label(ClientName,?NOTEBOOK)),
+            ?LOG({guiSendMsg,String, Channel}),
             case Channel of
                  ?SYSTEM_NAME ->  write_channel(with_label(ClientName, ?SYSTEM), "- "++"Command not recognized: "++String) ;
                  _        -> Result = catch_fatal(ClientName, Panel,
@@ -157,6 +172,7 @@ handle_event(#wx{ event = #wxCommand{type = command_text_enter, cmdString = Item
 
          %% Who am I?
          whoami -> Result = catch_fatal(ClientName, Panel, fun () -> request(ClientName, whoami)  end),
+                   ?LOG({guiWhoami,Result}),
                    case Result of
                         error -> ok ;
                         Nick  -> write_channel(with_label(ClientName, ?SYSTEM), "* "++"You are "++Nick)
@@ -164,6 +180,7 @@ handle_event(#wx{ event = #wxCommand{type = command_text_enter, cmdString = Item
 
          %% Change nickname
          {nick, Nick} -> Result = catch_fatal(ClientName, Panel, fun () -> request(ClientName,{nick, Nick}) end ),
+                         ?LOG({guiFetchNick,Result,Nick}),
                          case Result of
                               ok    -> write_channel( with_label(ClientName, ?SYSTEM),
                                                       "* "++"You are known now as "++Nick) ;
@@ -172,6 +189,7 @@ handle_event(#wx{ event = #wxCommand{type = command_text_enter, cmdString = Item
 
          %% Ping someone
          {ping, Nick} -> Result = catch_fatal(ClientName, Panel, fun () -> request(ClientName,{ping, Nick}) end ),
+                         ?LOG({guiPingNick,Result,Nick}),
                          case Result of
                               ok    -> write_channel( with_label(ClientName, ?SYSTEM),
                                                       "* "++"Ping "++Nick) ;
@@ -180,6 +198,7 @@ handle_event(#wx{ event = #wxCommand{type = command_text_enter, cmdString = Item
 
          %% The given command was wrong
          {ignore, Line}    ->
+            ?LOG({"guiCommandNotReconized",Line}),
             write_channel(with_label(ClientName, ?SYSTEM), "- "++"Command not recognized"),
             write_channel(with_label(ClientName, ?SYSTEM), Line)
     end,
@@ -341,10 +360,12 @@ channel_id(ChannelName) ->
 
 %% Requests
 request(ClientName, Msg) ->
+    ?LOG({"guiRequest", ClientName, Msg}), 
     genserver:request(to_atom(ClientName), Msg, 100000). % must be greater than default timeout
 
 %% Errors
 catch_fatal(ClientName, Panel, Cmd) ->
+    ?LOG({"guiCatchFatal", ClientName, Panel, Cmd}), 
     case catch( Cmd() ) of
         {'EXIT',Reason} -> fatal_dialog(Panel, Reason) ;
         {error, _, Msg} -> write_channel(with_label(ClientName, ?SYSTEM), "- Error: "++Msg),
