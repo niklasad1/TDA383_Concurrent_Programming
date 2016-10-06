@@ -13,7 +13,7 @@
 %% Produce initial state
 initial_state(Nick, GUIName) ->
     ?LOG({"initialState",Nick,GUIName}),
-    #client_st {gui = GUIName, nick = Nick}.
+    #client_st {gui = GUIName, nick = Nick, is_conn=false, server=false}.
     
 %% ---------------------------------------------------------------------------
 
@@ -27,19 +27,26 @@ initial_state(Nick, GUIName) ->
 %% Connect to server
 handle(St, {connect, Server}) ->
     ?LOG({handleConnect,St,Server}),
-    Data = "hello?",
-    io:fwrite("Client is sending: ~p~n", [Data]),
     ServerAtom = list_to_atom(Server),
-    Response = genserver:request(ServerAtom, Data),
-    io:fwrite("Client received: ~p~n", [Response]),
-    % {reply, ok, St} ;
-    {reply, {error, not_implemented, "Not implemented"}, St} ;
+    Response = genserver:request(ServerAtom, {connect, St#client_st.nick}),
+    case Response of
+      ok -> 
+        NewSt = St#client_st{is_conn=true, server=ServerAtom}, 
+        {reply, ok, NewSt};
+      user_already_connected -> {reply, {error,user_already_connected,"ALREADY CONNECTED"}, St}
+    end;
 
 %% Disconnect from server
 handle(St, disconnect) ->
     ?LOG({handleDisconnect,St}),
-    % {reply, ok, St} ;
-    {reply, {error, not_implemented, "Not implemented"}, St} ;
+    io:fwrite("server: ~p~n", [St#client_st.server]),
+    Response = genserver:request(St#client_st.server, {disconnect, St#client_st.nick}),
+    case Response of
+      ok -> 
+        NewSt = St#client_st{is_conn=false, server=false},
+        {reply, ok, NewSt};
+      _ -> {reply, {error,user_already_connected,"ALREADY CONNECTED"}, St}
+    end;
 
 % Join channel
 handle(St, {join, Channel}) ->
