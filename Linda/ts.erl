@@ -1,13 +1,18 @@
 -module(ts).
 -export([new/0,in/2,out/2]).
 
-% The tuplespace
+% The Tuplespace.
 % CurrentList contains appended data from clients.
 % QueueList contains sought data from blocked clients. It also carry the reference number of the call from client
 % and the PID from the client.
-%
-% tuplespace reacts on message passing from clients. Upon request, it either supply the client
-% with the needed data or takes the data and stores it in CurrentList.
+% tuplespace reacts on message passing from clients.
+% Given a client's request to take out a data, it will search through the
+% server's list of appended data in CurrentList and pass it to the client is possible,
+% otherwise the request will be stored in the QueueList - including the PID of which
+% if was requested from and also the corresponding reference number.
+% Given a client's request to put in a data, the server will search through the
+% QueueList if there is any candidates to pass it to, otherwise it will be
+% appended in CurrentList for later usage.
 
 tuplespace(CurrentList,QueueList) ->
      receive
@@ -49,9 +54,9 @@ tuplespace(NewList,NewQueueList).
 
 
 % delete
-% When passed CurrentList, it will try to remove tuple A from it.
-% When passed QueueList, it will try to remove the tuple with first element corresponding
-% to the tuple A passed.
+% When passed CurrentList, it will try to remove tuple A from it, otherwise it will return the original list.
+% When passed QueueList, it will try to remove the tuple with its first element corresponding
+% to the tuple A passed. If not, it will return the original list.
 % It works with wildcard any passed.
 
 delete([First={Data,_,_}|Rest],A) ->
@@ -68,7 +73,9 @@ delete([],_) -> [].
 
 % find
 % When passed CurrentList, it will try find A in CurrentList. If it does, it returns {found, A}.
-% When passed QueueList, it will try find a tuple in the list with first element corresponding to A.
+% otherwise it will return {not_found, A}.
+% When passed QueueList, it will try find a tuple in the list with first element corresponding to A,
+% otherwise it will return {not_found,A}.
 % It works with wildcard any passed.
 
 find([First={Data,_,_}|Rest], A) ->
@@ -104,8 +111,15 @@ new() ->
   Pid.
 
 % in
-% Wants to take out pattern into TS. Should block if the element Pattern
-% is not already in TS.
+% Wants to take out pattern from TS. Should block if the element Pattern
+% is not already in TS. It will be blocked until provided with the
+% desired data. It can pass the tuple with an element given
+% by any. Any basically means, doesn't matter what element
+% is in that position.
+% If a tuple is not passed in Pattern it will just return incorrect_args.
+% A correct, existing tuplespace PID must be passed in TS, otherwise
+% it will just return incorrect_args.
+
 in(TS,Pattern) when is_pid(TS), is_tuple(Pattern)->
 Ref = make_ref(),
 TS ! {self(),Ref, Pattern, takeout},
@@ -119,8 +133,12 @@ receive
 
 in(_,_) ->
   incorrect_args.
-%out
-% Wants to put in pattern from TS.
+  
+% out
+% Wants to put in pattern in TS. If a tuple is not passed
+% it will just return incorrect_args.
+% A correct, existing tuplespace PID must be passed in TS,
+% otherwise it will just return incorrect_args.
 
 out(TS, Pattern) when is_pid(TS), is_tuple(Pattern) ->
 Ref = make_ref(),
@@ -136,7 +154,7 @@ out(_,_)  ->
   incorrect_args.
 
 % match
-% match function supplied for wildcard any checks.
+% match function supplied (by lab PM) for wildcard any checks.
 
 match(any,_) -> true;
 
