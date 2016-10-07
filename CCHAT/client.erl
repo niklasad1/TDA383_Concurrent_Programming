@@ -51,8 +51,13 @@ handle(St, disconnect) ->
 % Join channel
 handle(St, {join, Channel}) ->
     ?LOG({handleJoin,St,Channel}),
-    % {reply, ok, St} ;
-    {reply, {error, not_implemented, "Not implemented"}, St} ;
+    Response = genserver:request(St#client_st.server, {join, St#client_st.nick, Channel}),
+    case Response of
+      ok -> 
+        {reply, ok, St};
+      _ -> {reply, {error,user_already_joined,"ALREADY JOINED"}, St}
+    end;
+    % {reply, {error, not_implemented, "Not implemented"}, St} ;
 
 %% Leave channel
 handle(St, {leave, Channel}) ->
@@ -63,8 +68,7 @@ handle(St, {leave, Channel}) ->
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->
     ?LOG({handleMsgFromGui,St,Channel,Msg}),
-    % {reply, ok, St} ;
-    {reply, {error, not_implemented, "Not implemented"}, St} ;
+    {reply, ok, St};
 
 %% Get current nick
 handle(St, whoami) ->

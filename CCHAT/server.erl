@@ -34,17 +34,29 @@ handle(St, {disconnect, Client}) ->
   ?LOG({"serverDisConnect", Client}),
   case find(St#server_st.conn, Client) of
      found -> 
-      NewSt = St#server_st{conn = delete(St#server_st.conn, Client)},
+      NewSt = St#server_st{conn = list:delete(St#server_st.conn, Client)},
       {reply,ok,NewSt};
      not_found -> {reply, user_not_conneted ,St}
   end; 
 
-handle(St, Request) ->
-    ?LOG({"serverHandle", St,Request}),
-    io:fwrite("Server received: ~p~n", [Request]),
-    Response = "hi!",
-    io:fwrite("Server is sending: ~p~n", [Response]),
-    {reply, Response, St}.
+handle(St, {join, Client, Channel} ) ->
+  ?LOG({"serverJoinChannel", Client}),
+    % TODO check ch state etc, check if user is already connect or not
+    % if not in channel list -> add channel + user, 
+    % elif channel in channelist but not user add user
+    % else user and ch in channel list ret, "user_already_joined"
+    case found of 
+      found -> {reply,ok,St};
+      not_found -> {reply, user_already_joined ,St}
+  end; 
+
+handle(St, {msg_from_GUI, Client, Channel} ) ->
+  ?LOG({"serverMsgFromGUI", Client}),
+      {reply, error, St};
+
+handle(St, {leave, Client, Channel} ) ->
+  ?LOG({"serverLeaveChannel", Client}),
+      {reply, error, St}.
 
 find([First|Rest], A) ->
     if
@@ -53,15 +65,4 @@ find([First|Rest], A) ->
     end;
 find([],_) ->
     not_found.
-
-delete([First|Rest],A) ->
-    if
-      First=:=A ->
-        Rest;
-      true ->
-        [First|delete(Rest,A)]
-    end;
- 
-delete([], A) ->
-    [].
 
