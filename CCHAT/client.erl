@@ -92,7 +92,7 @@ handle(St, whoami) ->
 handle(St, {nick, Nick}) ->
     ?LOG({"handleNick",St,Nick}),
     % TODO, fix so this can only be perfomed "offline"
-    NewSt = St#client_st{nick = Nick}, 
+    NewSt = St#client_st{nick = list_to_atom(Nick)}, 
     {reply, ok, NewSt};
 
 %% Incoming message
