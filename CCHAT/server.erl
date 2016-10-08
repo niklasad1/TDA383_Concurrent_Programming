@@ -21,38 +21,39 @@ initial_state(ServerName) ->
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the client
 %% and NewState is the new state of the server.
 
-handle(St, {connect, Client}) ->
-  ?LOG({"serverConnect", Client}),
-  case find(St#server_st.conn, Client) of
+handle(St, {connect, ClientName}) ->
+  ?LOG({"serverConnect", ClientName}),
+  case find(St#server_st.conn, ClientName) of
     not_found -> 
-      NewSt = St#server_st{conn = St#server_st.conn ++ [Client]}, 
+      NewSt = St#server_st{conn = St#server_st.conn ++ [ClientName]}, 
       {reply,ok,NewSt};
     found -> {reply, user_already_connected ,St}
   end; 
 
-handle(St, {disconnect, Client}) ->
-  ?LOG({"serverDisConnect", Client}),
-  case find(St#server_st.conn, Client) of
+handle(St, {disconnect, ClientName}) ->
+  ?LOG({"serverDisconnect", ClientName}),
+  case find(St#server_st.conn, ClientName) of
      found -> 
-      NewSt = St#server_st{conn = list:delete(St#server_st.conn, Client)},
+      io:format("FOUND IN LIST TIME TO DELETE"),
+      NewSt = St#server_st{conn = delete(St#server_st.conn, ClientName)},
       {reply,ok,NewSt};
      not_found -> {reply, user_not_conneted ,St}
   end; 
 
-handle(St,{join_server,Gui}) ->
-io:format("check1  ~w~n",[Gui]),
-    case find(St#server_st.servers,Gui) of
+handle(St,{join_server,ClientName}) ->
+io:format("check1  ~w~n",[ClientName]),
+    case find(St#server_st.servers,ClientName) of
          {found,_} ->
 	       {reply, already_in_server,St#server_st{}};
 	 {not_found,_} ->
-	       A=St#server_st{servers=St#server_st.servers++[Gui]},
+	       A=St#server_st{servers=St#server_st.servers++[ClientName]},
 	       io:format("check  ~w~n",[A]),
 	       {reply, joined_server, A#server_st{}}
 	       end;
 	       
-handle(St,{join_channel,PotentialChannel,Gui}) ->
+handle(St,{join_channel,PotentialChannel,ClientName}) ->
      PriorList=St#server_st.channels,
-     PostList=do(PriorList,PotentialChannel, Gui, join),
+     PostList=do(PriorList,PotentialChannel, ClientName, join),
      case PostList=:=PriorList of
             true ->
 	         {reply, cant_join_channel, St#server_st{}};
@@ -60,9 +61,9 @@ handle(St,{join_channel,PotentialChannel,Gui}) ->
 	         {reply, joined_channel, St#server_st{channels=PostList}}
      end;
 
-handle(St,{exit_channel, PotentialChannel, Gui}) ->
+handle(St,{exit_channel, PotentialChannel, ClientName}) ->
      PriorList=St#server_st.channels,
-     PostList=do(PriorList, PotentialChannel, Gui, exit),
+     PostList=do(PriorList, PotentialChannel, ClientName, exit),
      case PostList=:=PriorList of
           true ->
               {reply, failed_exit_channel, St#server_st{}};
@@ -71,8 +72,8 @@ handle(St,{exit_channel, PotentialChannel, Gui}) ->
      end;
 
 
-handle(St, {msg_from_GUI, Channel, Gui, Msg} ) ->
-  ?LOG({"serverMsgFromGUI", Channel, Gui, Msg}),
+handle(St, {msg_from_GUI, Channel, ClientName, Msg} ) ->
+  ?LOG({"serverMsgFromGUI", Channel, ClientName, Msg}),
       % TODO!!!!!! 
       % find all clients, by unique name(PID), broadcast to all connect clients
       % in chatroom, think about concurrency!!!!, may spawn a process for each
@@ -90,39 +91,50 @@ find([],_) ->
     not_found.
 
 % add and do (temp names) adds a gui to a channel (or server) if not already in it
-add([F|R],Gui, join) ->
-     case F==Gui of
+add([F|R],ClientName, join) ->
+     case F==ClientName of
           true ->
 	       [F|R];
 	  false ->
-	       [F] ++ add(R,Gui, join)
+	       [F] ++ add(R,ClientName, join)
 	       end;
-add([F|R],Gui,exit) ->
-     case F==Gui of
+add([F|R],ClientName,exit) ->
+     case F==ClientName of
           true ->
 	      R;
 	  false ->
-	      [F] ++ add(R,Gui, exit)
+	      [F] ++ add(R,ClientName, exit)
      end;
-add([], Gui, join) ->
-[Gui];
-add([],Gui, exit) ->
-[].
-do([{Channel,L}|Rest],PotentialChannel, Gui, join) ->
+add([], ClientName, join) ->
+  [ClientName];
+add([],_, exit) ->
+  [].
+do([{Channel,L}|Rest],PotentialChannel, ClientName, join) ->
       case Channel==PotentialChannel of
             true ->
-	         [{Channel,add(L, Gui,join)}] ++ Rest;
+	         [{Channel,add(L, ClientName,join)}] ++ Rest;
             false ->
-	         [{Channel,L}]++do(Rest,PotentialChannel,Gui,join)
+	         [{Channel,L}]++do(Rest,PotentialChannel,ClientName,join)
       end;
-do([{Channel,L}|Rest],PotentialChannel, Gui, exit) ->
+do([{Channel,L}|Rest],PotentialChannel, ClientName, exit) ->
       case Channel==PotentialChannel of
             true ->
-	         [{Channel, add(L,Gui,exit)}] ++ Rest;
+	         [{Channel, add(L,ClientName,exit)}] ++ Rest;
             false ->
 	         [{Channel, L}]++do(Rest,PotentialChannel,gui,exit)
       end;
-do([],PotentialChannel,Gui, join) ->
-[{PotentialChannel,[Gui]}];
-do([], PotentialChannel, Gui, exit) ->
+do([],PotentialChannel,ClientName, join) ->
+[{PotentialChannel,[ClientName]}];
+do([], _, _, exit) ->
 [].
+
+delete([First|Rest],A) ->
+    if
+      First=:=A ->  
+        Rest;
+      true ->
+        [First|delete(Rest,A)]
+    end;
+delete([], _) ->
+    [].
+

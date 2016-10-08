@@ -26,9 +26,9 @@ initial_state(Nick, GUIName) ->
 
 %% Connect to server
 handle(St, {connect, Server}) ->
-    ?LOG({handleConnect,St,Server}),
+    ?LOG({clientConnect,St,Server}),
     ServerAtom = list_to_atom(Server),
-    Response = genserver:request(ServerAtom, {connect, St#client_st.gui}),
+    Response = genserver:request(ServerAtom, {connect, St#client_st.nick}),
     case Response of
       ok -> 
         NewSt = St#client_st{is_conn=true, server=ServerAtom}, 
@@ -38,19 +38,19 @@ handle(St, {connect, Server}) ->
 
 %% Disconnect from server
 handle(St, disconnect) ->
-    ?LOG({handleDisconnect,St}),
+    ?LOG({clientDisconnect,St}),
     io:fwrite("server: ~p~n", [St#client_st.server]),
-    Response = genserver:request(St#client_st.server, {disconnect, St#client_st.gui}),
+    Response = genserver:request(St#client_st.server, {disconnect, St#client_st.nick}),
     case Response of
       ok -> 
         NewSt = St#client_st{is_conn=false, server=false},
         {reply, ok, NewSt};
-      _ -> {reply, {error,user_already_connected,"ALREADY CONNECTED"}, St}
+      _ -> {reply, {error,user_already_disconnected,"ALREADY DISCONNECTED"}, St}
     end;
 
 % Join channel
 handle(St, {join, Channel}) ->
-    Data={join_channel, list_to_atom(Channel), St#client_st.gui},
+    Data={join_channel, list_to_atom(Channel), St#client_st.nick},
     ?LOG({"clientJoin", Data}),
     Response = genserver:request(St#client_st.server,Data),
     case Response of
@@ -62,7 +62,7 @@ handle(St, {join, Channel}) ->
 
 %% Leave channel
 handle(St, {leave, Channel}) ->
-    Data={exit_channel, list_to_atom(Channel), St#client_st.gui},
+    Data={exit_channel, list_to_atom(Channel), St#client_st.nick},
     ?LOG({"clientLeave", Data}),
     Response = genserver:request(St#client_st.server,Data),
     case Response of
@@ -74,9 +74,9 @@ handle(St, {leave, Channel}) ->
 
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->
-    Data={msg_from_GUI, list_to_atom(Channel), St#client_st.gui,Msg},
+    Data={msg_from_GUI, list_to_atom(Channel), St#client_st.nick ,Msg},
     ?LOG({"handleMsgFromGui", Data}),
-    Response = genserver:request(St#client_st.server,Data),
+    Response = genserver:request(St#client_st.server, Data),
     case Response of
 	      ok -> {reply, ok, St};
         _ -> {reply, error, not_implemented, "TODO"}
