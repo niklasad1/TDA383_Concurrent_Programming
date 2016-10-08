@@ -25,7 +25,8 @@ handle(St, {connect, ClientName}) ->
   ?LOG({"serverConnect", ClientName}),
   case find(St#server_st.conn, ClientName) of
     not_found -> 
-      NewSt = St#server_st{conn = St#server_st.conn ++ [ClientName]}, 
+      NewSt = St#server_st{conn = St#server_st.conn ++ [ClientName]},
+      io:format("~w~n",[NewSt#server_st.conn]),
       {reply,ok,NewSt};
     found -> {reply, user_already_connected ,St}
   end; 
@@ -39,17 +40,6 @@ handle(St, {disconnect, ClientName}) ->
       {reply,ok,NewSt};
      not_found -> {reply, user_not_conneted ,St}
   end; 
-
-handle(St,{join_server,ClientName}) ->
-io:format("check1  ~w~n",[ClientName]),
-    case find(St#server_st.servers,ClientName) of
-         {found,_} ->
-	       {reply, already_in_server,St#server_st{}};
-	 {not_found,_} ->
-	       A=St#server_st{servers=St#server_st.servers++[ClientName]},
-	       io:format("check  ~w~n",[A]),
-	       {reply, joined_server, A#server_st{}}
-	       end;
 	       
 handle(St,{join_channel,PotentialChannel,ClientName}) ->
      PriorList=St#server_st.channels,
@@ -72,8 +62,13 @@ handle(St,{exit_channel, PotentialChannel, ClientName}) ->
      end;
 
 
-handle(St, {msg_from_GUI, Channel, ClientName, Msg} ) ->
+handle(St, {msg_from_GUI, Channel, Nick, Msg, GuiName}) ->
   ?LOG({"serverMsgFromGUI", Channel, ClientName, Msg}),
+  L=findchannel_list(St#server_st.channels, Channel),
+  
+  io:format("~w~n~w~n",[L, GuiName]),
+     sendmessages(L, {Channel, Nick, Msg, GuiName}),
+     
       % TODO!!!!!! 
       % find all clients, by unique name(PID), broadcast to all connect clients
       % in chatroom, think about concurrency!!!!, may spawn a process for each
@@ -81,11 +76,32 @@ handle(St, {msg_from_GUI, Channel, ClientName, Msg} ) ->
       % Possiby store messages in buffer until sent
       {reply, ok, St}.
 
-
+findchannel_list([{FirstChannel,_,GuiList}|Rest], InputChannel) ->
+     case FirstChannel=:=InputChannel of
+         true ->
+	      GuiList;
+	 false ->
+	      findchannel_list(Rest,InputChannel)
+     end;
+findchannel_list([], InputChannel) ->
+     does_not_exist.
+sendmessages([FirstGui|Rest], {Channel, Nick, Msg, MessageSender}) ->
+      case FirstGui =:= MessageSender of
+          true ->
+	      sendmessages(Rest, {Channel, Nick, Msg, MessageSender});
+	  false ->
+	      spawn_link(fun() ->
+	       gen_server:call(FirstGui, {msg_to_GUI, atom_to_list(Channel), atom_to_list(Nick)++"> "++Msg}) end),
+	      sendmessages(Rest,{Channel, Nick, Msg, MessageSender})
+       end; 
+sendmessages([],_) ->
+ok.
 find([First|Rest], A) ->
-    if
-      First =:= A -> found;
-      true -> find(Rest,A)
+    case First=:=A of
+       true ->
+           found;
+       false ->
+           find(Rest,A)
     end;
 find([],_) ->
     not_found.

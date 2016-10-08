@@ -13,7 +13,7 @@
 %% Produce initial state
 initial_state(Nick, GUIName) ->
     ?LOG({"initialState",Nick,GUIName}),
-    #client_st {gui = GUIName, nick = Nick, is_conn=false, server=false}.
+    #client_st {gui = list_to_atom(GUIName), nick = tempnick, is_conn=false, server=false}.
     
 %% ---------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@ initial_state(Nick, GUIName) ->
 handle(St, {connect, Server}) ->
     ?LOG({clientConnect,St,Server}),
     ServerAtom = list_to_atom(Server),
-    Response = genserver:request(ServerAtom, {connect, St#client_st.nick}),
+    Response = genserver:request(ServerAtom, {connect, St#client_st.gui}),
     case Response of
       ok -> 
         NewSt = St#client_st{is_conn=true, server=ServerAtom}, 
@@ -74,7 +74,7 @@ handle(St, {leave, Channel}) ->
 
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->
-    Data={msg_from_GUI, list_to_atom(Channel), St#client_st.nick ,Msg},
+    Data={msg_from_GUI, list_to_atom(Channel), St#client_st.nick ,Msg, St#client_st.gui},
     ?LOG({"handleMsgFromGui", Data}),
     Response = genserver:request(St#client_st.server, Data),
     case Response of
