@@ -21,29 +21,28 @@ initial_state(ServerName) ->
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the client
 %% and NewState is the new state of the server.
 
-handle(St, {connect, ClientName}) ->
-  ?LOG({"serverConnect", ClientName}),
-  case find(St#server_st.conn, ClientName) of
+handle(St, {connect, Gui, Nick}) ->
+  ?LOG({"serverConnect", Gui, Nick}),
+  case find(St#server_st.conn, Gui) of
     not_found -> 
-      NewSt = St#server_st{conn = St#server_st.conn ++ [ClientName]},
+      NewSt = St#server_st{conn = St#server_st.conn ++ [Gui]},
       io:format("~w~n",[NewSt#server_st.conn]),
       {reply,ok,NewSt};
     found -> {reply, user_already_connected ,St}
   end; 
 
-handle(St, {disconnect, ClientName}) ->
-  ?LOG({"serverDisconnect", ClientName}),
-  case find(St#server_st.conn, ClientName) of
+handle(St, {disconnect, Gui, Nick}) ->
+  ?LOG({"serverDisconnect", Gui, Nick}),
+  case find(St#server_st.conn, Gui) of
      found -> 
-      io:format("FOUND IN LIST TIME TO DELETE"),
-      NewSt = St#server_st{conn = delete(St#server_st.conn, ClientName)},
+      NewSt = St#server_st{conn = delete(St#server_st.conn, Gui)},
       {reply,ok,NewSt};
      not_found -> {reply, user_not_conneted ,St}
   end; 
 	       
-handle(St,{join_channel,PotentialChannel,ClientName}) ->
+handle(St,{join_channel, PotentialChannel, Gui, Nick}) ->
      PriorList=St#server_st.channels,
-     PostList=do(PriorList,PotentialChannel, ClientName, join),
+     PostList=do(PriorList,PotentialChannel, Gui, join),
      case PostList=:=PriorList of
             true ->
 	         {reply, cant_join_channel, St#server_st{}};
@@ -51,9 +50,9 @@ handle(St,{join_channel,PotentialChannel,ClientName}) ->
 	         {reply, joined_channel, St#server_st{channels=PostList}}
      end;
 
-handle(St,{exit_channel, PotentialChannel, ClientName}) ->
+handle(St,{exit_channel, PotentialChannel, Gui, Nick}) ->
      PriorList=St#server_st.channels,
-     PostList=do(PriorList, PotentialChannel, ClientName, exit),
+     PostList=do(PriorList, PotentialChannel, Gui, exit),
      case PostList=:=PriorList of
           true ->
               {reply, failed_exit_channel, St#server_st{}};
@@ -63,7 +62,7 @@ handle(St,{exit_channel, PotentialChannel, ClientName}) ->
 
 
 handle(St, {msg_from_GUI, Channel, Nick, Msg, GuiName}) ->
-  ?LOG({"serverMsgFromGUI", Channel, ClientName, Msg}),
+  ?LOG({"serverMsgFromGUI", Channel, Nick, Msg, GuiName}),
   L=findchannel_list(St#server_st.channels, Channel),
   
   io:format("~w~n~w~n",[L, GuiName]),

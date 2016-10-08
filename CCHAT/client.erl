@@ -13,7 +13,7 @@
 %% Produce initial state
 initial_state(Nick, GUIName) ->
     ?LOG({"initialState",Nick,GUIName}),
-    #client_st {gui = list_to_atom(GUIName), nick = tempnick, is_conn=false, server=false}.
+    #client_st {gui = list_to_atom(GUIName), nick = Nick, is_conn=false, server=false}.
     
 %% ---------------------------------------------------------------------------
 
@@ -25,10 +25,10 @@ initial_state(Nick, GUIName) ->
 %% requesting process and NewState is the new state of the client.
 
 %% Connect to server
-handle(St, {connect, Server}) ->
+handle(St, {connect, Server}) when St#client_st.is_conn =:= false ->
     ?LOG({clientConnect,St,Server}),
     ServerAtom = list_to_atom(Server),
-    Response = genserver:request(ServerAtom, {connect, St#client_st.gui}),
+    Response = genserver:request(ServerAtom, {connect, St#client_st.gui, St#client_st.nick}),
     case Response of
       ok -> 
         NewSt = St#client_st{is_conn=true, server=ServerAtom}, 
@@ -36,11 +36,14 @@ handle(St, {connect, Server}) ->
       user_already_connected -> {reply, {error,user_already_connected,"ALREADY CONNECTED"}, St}
     end;
 
+handle(St, {connect, _}) ->
+  {reply, {error, user_already_connected, "ALREADY CONNECTED"}, St};
+
 %% Disconnect from server
-handle(St, disconnect) ->
+handle(St, disconnect) when St#client_st.is_conn =:= true ->
     ?LOG({clientDisconnect,St}),
     io:fwrite("server: ~p~n", [St#client_st.server]),
-    Response = genserver:request(St#client_st.server, {disconnect, St#client_st.nick}),
+    Response = genserver:request(St#client_st.server, {disconnect, St#client_st.gui, St#client_st.nick}),
     case Response of
       ok -> 
         NewSt = St#client_st{is_conn=false, server=false},
@@ -48,9 +51,12 @@ handle(St, disconnect) ->
       _ -> {reply, {error,user_already_disconnected,"ALREADY DISCONNECTED"}, St}
     end;
 
+handle(St, disconnect) ->
+    {reply, {error,user_already_disconnected,"ALREADY DISCONNECTED"}, St};
+
 % Join channel
 handle(St, {join, Channel}) ->
-    Data={join_channel, list_to_atom(Channel), St#client_st.gui},
+    Data={join_channel, list_to_atom(Channel), St#client_st.gui, St#client_st.nick},
     ?LOG({"clientJoin", Data}),
     Response = genserver:request(St#client_st.server,Data),
     case Response of
@@ -62,7 +68,7 @@ handle(St, {join, Channel}) ->
 
 %% Leave channel
 handle(St, {leave, Channel}) ->
-    Data={exit_channel, list_to_atom(Channel), St#client_st.gui},
+    Data={exit_channel, list_to_atom(Channel), St#client_st.gui, St#client_st.nick},
     ?LOG({"clientLeave", Data}),
     Response = genserver:request(St#client_st.server,Data),
     case Response of
@@ -89,11 +95,14 @@ handle(St, whoami) ->
     % {reply, {error, not_implemented, "Not implemented"}, St} ;
 
 %% Change nick
-handle(St, {nick, Nick}) ->
+handle(St, {nick, Nick}) when St#client_st.is_conn =:= false ->
     ?LOG({"handleNick",St,Nick}),
     % TODO, fix so this can only be perfomed "offline"
     NewSt = St#client_st{nick = list_to_atom(Nick)}, 
     {reply, ok, NewSt};
+
+handle(St, {nick, _}) ->
+  {reply, {error, not_implemented, "nick is only allowed to be changed offline"},St};
 
 %% Incoming message
 handle(St = #client_st { gui = GUIName }, {incoming_msg, Channel, Name, Msg}) ->
