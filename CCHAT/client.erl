@@ -28,7 +28,7 @@ initial_state(Nick, GUIName) ->
 handle(St, {connect, Server}) ->
     ?LOG({handleConnect,St,Server}),
     ServerAtom = list_to_atom(Server),
-    Response = genserver:request(ServerAtom, {connect, St#client_st.nick}),
+    Response = genserver:request(ServerAtom, {connect, St#client_st.gui}),
     case Response of
       ok -> 
         NewSt = St#client_st{is_conn=true, server=ServerAtom}, 
@@ -40,7 +40,7 @@ handle(St, {connect, Server}) ->
 handle(St, disconnect) ->
     ?LOG({handleDisconnect,St}),
     io:fwrite("server: ~p~n", [St#client_st.server]),
-    Response = genserver:request(St#client_st.server, {disconnect, St#client_st.nick}),
+    Response = genserver:request(St#client_st.server, {disconnect, St#client_st.gui}),
     case Response of
       ok -> 
         NewSt = St#client_st{is_conn=false, server=false},
@@ -50,25 +50,37 @@ handle(St, disconnect) ->
 
 % Join channel
 handle(St, {join, Channel}) ->
-    ?LOG({handleJoin,St,Channel}),
-    Response = genserver:request(St#client_st.server, {join, St#client_st.nick, Channel}),
+    Data={join_channel, list_to_atom(Channel), St#client_st.gui},
+    ?LOG({"clientJoin", Data}),
+    Response = genserver:request(St#client_st.server,Data),
     case Response of
-      ok -> 
-        {reply, ok, St};
-      _ -> {reply, {error,user_already_joined,"ALREADY JOINED"}, St}
-    end;
-    % {reply, {error, not_implemented, "Not implemented"}, St} ;
+        joined_channel ->
+	       {reply, ok, St};
+	      cant_join_channel ->
+	       {reply, {error, not_implemented, "Already in channel"}, St}
+	end;
 
 %% Leave channel
 handle(St, {leave, Channel}) ->
-    ?LOG({handleLeave,St,Channel}),
-    % {reply, ok, St} ;
-    {reply, {error, not_implemented, "Not implemented"}, St} ;
+    Data={exit_channel, list_to_atom(Channel), St#client_st.gui},
+    ?LOG({"clientLeave", Data}),
+    Response = genserver:request(St#client_st.server,Data),
+    case Response of
+        success_exit_channel ->
+	       {reply, ok, St};
+	      failed_exit_channel ->
+	       {reply, {error, not_implemented, "Already in channel"}, St}
+    end;
 
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->
-    ?LOG({handleMsgFromGui,St,Channel,Msg}),
-    {reply, ok, St};
+    Data={msg_from_GUI, list_to_atom(Channel), St#client_st.gui,Msg},
+    ?LOG({"handleMsgFromGui", Data}),
+    Response = genserver:request(St#client_st.server,Data),
+    case Response of
+	      ok -> {reply, ok, St};
+        _ -> {reply, error, not_implemented, "TODO"}
+    end;
 
 %% Get current nick
 handle(St, whoami) ->
