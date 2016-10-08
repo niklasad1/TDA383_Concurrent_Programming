@@ -91,40 +91,40 @@ find([],_) ->
     not_found.
 
 % add and do (temp names) adds a gui to a channel (or server) if not already in it
-add([FirstGui|Rest], InputGui, join) ->
-     case FirstGui=:=InputGui of
+add([F|R],ClientName, join) ->
+     case F==ClientName of
           true ->
-	       [FirstGui|Rest];
+	       [F|R];
 	  false ->
-	       [FirstGui] ++ add(Rest,InputGui, join)
+	       [F] ++ add(R,ClientName, join)
 	       end;
-add([FirstGui|Rest], InputGui,exit) ->
-     case FirstGui=:=InputGui of
+add([F|R],ClientName,exit) ->
+     case F==ClientName of
           true ->
-	      Rest;
+	      R;
 	  false ->
-	      [FirstGui] ++ add(Rest,InputGui, exit)
+	      [F] ++ add(R,ClientName, exit)
      end;
-add([], InputGui, join) ->
-  [InputGui];
+add([], ClientName, join) ->
+  [ClientName];
 add([],_, exit) ->
   [].
-do([{ChannelName, NickList, GuiList}|Rest], InputChannel, InputGui, join) ->
-      case ChannelName=:=InputChannel of
+do([{Channel,L}|Rest],PotentialChannel, ClientName, join) ->
+      case Channel==PotentialChannel of
             true ->
-	         [{ChannelName,NickList, add(GuiList, InputGui,join)}] ++ Rest;
+	         [{Channel,add(L, ClientName,join)}] ++ Rest;
             false ->
-	         [{ChannelName,NickList,GuiList}]++do(Rest,InputChannel,InputGui,join)
+	         [{Channel,L}]++do(Rest,PotentialChannel,ClientName,join)
       end;
-do([{ChannelName, NickList, GuiList}|Rest], InputChannel, InputGui, exit) ->
-      case ChannelName=:=InputChannel of
+do([{Channel,L}|Rest],PotentialChannel, ClientName, exit) ->
+      case Channel==PotentialChannel of
             true ->
-	         [{ChannelName, NickList,  add(GuiList, InputGui,exit)}] ++ Rest;
+	         [{Channel, add(L,ClientName,exit)}] ++ Rest;
             false ->
-	         [{ChannelName, NickList, GuiList}]++do(Rest, InputChannel, InputGui,exit)
+	         [{Channel, L}]++do(Rest,PotentialChannel,gui,exit)
       end;
-do([], InputChannel,InputGui, join) ->
-[{InputChannel, [user01] ,[InputGui]}];
+do([],PotentialChannel,ClientName, join) ->
+[{PotentialChannel,[ClientName]}];
 do([], _, _, exit) ->
 [].
 

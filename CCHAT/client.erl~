@@ -50,7 +50,7 @@ handle(St, disconnect) ->
 
 % Join channel
 handle(St, {join, Channel}) ->
-    Data={join_channel, list_to_atom(Channel), St#client_st.gui},
+    Data={join_channel, list_to_atom(Channel), St#client_st.nick},
     ?LOG({"clientJoin", Data}),
     Response = genserver:request(St#client_st.server,Data),
     case Response of
@@ -62,7 +62,7 @@ handle(St, {join, Channel}) ->
 
 %% Leave channel
 handle(St, {leave, Channel}) ->
-    Data={exit_channel, list_to_atom(Channel), St#client_st.gui},
+    Data={exit_channel, list_to_atom(Channel), St#client_st.nick},
     ?LOG({"clientLeave", Data}),
     Response = genserver:request(St#client_st.server,Data),
     case Response of
