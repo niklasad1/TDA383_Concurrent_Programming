@@ -37,6 +37,7 @@ handle(St, {connect, Server}) ->
       catch
         exit:"Timeout" ->
           {reply, {error, server_not_reached, "Server Timeout"}, St};
+	  %Not sure what type of exit message it is (below). (Connect to non-existing server)
 	error:_ -> {reply, {error, server_not_reached, "Non existing server"}, St}
     end;
 
