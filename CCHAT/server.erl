@@ -23,9 +23,10 @@ initial_state(ServerName) ->
 
 handle(St, {connect, Gui, Nick}) ->
   ?LOG({"serverConnect", Gui, Nick}),
-  case find(St#server_st.conn, Gui) of
+  case find(St#server_st.conn, Nick) of
     not_found -> 
-      NewSt = St#server_st{conn = St#server_st.conn ++ [Gui]},
+      % timer:sleep(3000),
+      NewSt = St#server_st{conn = St#server_st.conn ++ [Nick]},
       io:format("~w~n",[NewSt#server_st.conn]),
       {reply,ok,NewSt};
     found -> {reply, user_already_connected ,St}
@@ -33,11 +34,11 @@ handle(St, {connect, Gui, Nick}) ->
 
 handle(St, {disconnect, Gui, Nick}) ->
   ?LOG({"serverDisconnect", Gui, Nick}),
-  case find(St#server_st.conn, Gui) of
+  case find(St#server_st.conn, Nick) of
      found -> 
-      NewSt = St#server_st{conn = delete(St#server_st.conn, Gui)},
+      NewSt = St#server_st{conn = delete(St#server_st.conn, Nick)},
       {reply,ok,NewSt};
-     not_found -> {reply, user_not_conneted ,St}
+     not_found -> {reply, user_not_connected ,St}
   end; 
 	       
 handle(St,{join_channel, Ch, Gui, Nick}) ->

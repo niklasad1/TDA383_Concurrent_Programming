@@ -13,7 +13,7 @@
 %% Produce initial state
 initial_state(Nick, GUIName) ->
     ?LOG({"initialState",Nick,GUIName}),
-    #client_st {gui = list_to_atom(GUIName), nick = list_to_atom(Nick), is_conn=false, server=false}.
+    #client_st {gui = list_to_atom(GUIName), nick = list_to_atom(Nick), is_conn=false, server=[], channels=[]}.
     
 %% ---------------------------------------------------------------------------
 
@@ -28,12 +28,14 @@ initial_state(Nick, GUIName) ->
 handle(St, {connect, Server}) when St#client_st.is_conn =:= false ->
     ?LOG({clientConnect,St,Server}),
     ServerAtom = list_to_atom(Server),
-    Response = genserver:request(ServerAtom, {connect, St#client_st.gui, St#client_st.nick}),
-    case Response of
+    try genserver:request(ServerAtom, {connect, St#client_st.gui,St#client_st.nick}) of
       ok -> 
         NewSt = St#client_st{is_conn=true, server=ServerAtom}, 
         {reply, ok, NewSt};
-      user_already_connected -> {reply, {error,user_already_connected,"ALREADY CONNECTED"}, St}
+      true -> {reply, nick_taken, "Nick taken"}
+      catch
+        exit:"Timeout" ->
+          {reply, {error, server_not_reached, "Server Timeout"}, St}
     end;
 
 handle(St, {connect, _}) ->
@@ -42,52 +44,78 @@ handle(St, {connect, _}) ->
 %% Disconnect from server
 handle(St, disconnect) when St#client_st.is_conn =:= true ->
     ?LOG({clientDisconnect,St}),
-    io:fwrite("server: ~p~n", [St#client_st.server]),
-    Response = genserver:request(St#client_st.server, {disconnect, St#client_st.gui, St#client_st.nick}),
-    case Response of
-      ok -> 
-        NewSt = St#client_st{is_conn=false, server=false},
-        {reply, ok, NewSt};
-      _ -> {reply, {error,user_already_disconnected,"ALREADY DISCONNECTED"}, St}
+    Data = {disconnect, St#client_st.gui, St#client_st.nick},
+    if
+      St#client_st.channels =:= [] -> 
+        try genserver:request(St#client_st.server,Data) of
+          ok ->
+	          NewSt = St#client_st{is_conn=false, server=false},
+            {reply, ok, NewSt};
+          true -> {reply, {error, user_not_joined, "User not in channel"}, St}
+          catch
+            exit:"Timeout" ->
+            {reply, {error, server_not_reached, "Server Timeout"}, St}
+        end;
+      true ->
+        {reply, {error, leave_channels_first, "User still in channels"}, St}
     end;
 
+
 handle(St, disconnect) ->
-    {reply, {error,user_already_disconnected,"ALREADY DISCONNECTED"}, St};
+    {reply, {error,user_not_connected,"ALREADY DISCONNECTED"}, St};
 
 % Join channel
 handle(St, {join, Channel}) ->
     Data={join_channel, list_to_atom(Channel), St#client_st.gui, St#client_st.nick},
     ?LOG({"clientJoin", Data}),
-    Response = genserver:request(St#client_st.server,Data),
-    case Response of
-        joined_channel ->
-	       {reply, ok, St};
-	      cant_join_channel ->
-         {reply, {error, user_already_joined, "User already joined channel"}, St}
-	end;
+    case lists:member(Channel, St#client_st.channels) of
+      false ->
+        try genserver:request(St#client_st.server,Data) of
+          joined_channel ->
+	          NewSt = St#client_st{channels = [Channel|St#client_st.channels]},
+            {reply, ok, NewSt};
+          cant_join_channel -> {reply, {error, user_not_joined, "User not in channel"}, St}
+          catch
+            exit:"Timeout" ->
+            {reply, {error, server_not_reached, "Server Timeout"}, St}
+        end;
+      true -> {reply, {error, user_already_joined, "User already in channel"}, St} 
+    end;
 
 %% Leave channel
 handle(St, {leave, Channel}) ->
     Data={exit_channel, list_to_atom(Channel), St#client_st.gui, St#client_st.nick},
     ?LOG({"clientLeave", Data}),
-    Response = genserver:request(St#client_st.server,Data),
-    case Response of
-        success_exit_channel ->
-	       {reply, ok, St};
-	      failed_exit_channel ->
-        {reply, {error, user_not_joined, "User not in channel"}, St}
+    case lists:member(Channel, St#client_st.channels) of
+      true ->
+        try genserver:request(St#client_st.server,Data) of
+          success_exit_channel ->
+	          NewSt = St#client_st{channels = lists:delete(Channel, St#client_st.channels)},
+            {reply, ok, NewSt};
+          failed_exit_channel -> {reply, {error, user_not_joined, "User not in channel"}, St}
+          catch
+            exit:"Timeout" ->
+            {reply, {error, server_not_reached, "Server Timeout"}, St}
+        end;
+      false -> {reply, {error, user_not_joined, "User not in channel"}, St} 
     end;
 
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->
     Data={msg_from_GUI, list_to_atom(Channel), St#client_st.nick ,Msg, St#client_st.gui},
-    ?LOG({"handleMsgFromGui", Data}),
-    Response = genserver:request(St#client_st.server, Data),
-    case Response of
-	      ok -> {reply, ok, St};
-        _ -> {reply, error, not_implemented, "TODO"}
+    case lists:member(Channel, St#client_st.channels) of
+      true ->
+        try genserver:request(St#client_st.server,Data) of
+          ok -> {reply, ok, St};
+          true -> {reply, {error, user_not_joined, "SHould never happend"}, St}
+          catch
+            exit:"Timeout" ->
+            {reply, {error, error_not_implemented, "Server Timeout"}, St}
+        end;
+      false -> {reply, {error, user_not_joined, "User not in channel"}, St} 
     end;
-
+    
+    
 %% Get current nick
 handle(St, whoami) ->
     ?LOG({handleWhoami,St}),
