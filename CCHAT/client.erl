@@ -13,7 +13,8 @@
 %% Produce initial state
 initial_state(Nick, GUIName) ->
     ?LOG({"initialState",Nick,GUIName}),
-    #client_st {gui = list_to_atom(GUIName), nick = list_to_atom(Nick), is_conn=false, server=false}.
+    #client_st {gui = list_to_atom(GUIName), nick = list_to_atom(Nick),
+                is_conn=false, server=shire}.
     
 %% ---------------------------------------------------------------------------
 
@@ -48,11 +49,11 @@ handle(St, disconnect) when St#client_st.is_conn =:= true ->
       ok -> 
         NewSt = St#client_st{is_conn=false, server=false},
         {reply, ok, NewSt};
-      _ -> {reply, {error,user_already_disconnected,"ALREADY DISCONNECTED"}, St}
+      _ -> {reply, {error,leave_channels_first,"ALREADY DISCONNECTED"}, St}
     end;
 
 handle(St, disconnect) ->
-    {reply, {error,user_already_disconnected,"ALREADY DISCONNECTED"}, St};
+    {reply, {error,user_not_connected,"ALREADY DISCONNECTED"}, St};
 
 % Join channel
 handle(St, {join, Channel}) ->
@@ -63,7 +64,7 @@ handle(St, {join, Channel}) ->
         joined_channel ->
 	       {reply, ok, St};
 	      cant_join_channel ->
-         {reply, {error, user_already_joined, "User already joined channel"}, St}
+         {reply, {error, user_already_joined, "Not connected or already joined"}, St}
 	end;
 
 %% Leave channel
@@ -85,7 +86,7 @@ handle(St, {msg_from_GUI, Channel, Msg}) ->
     Response = genserver:request(St#client_st.server, Data),
     case Response of
 	      ok -> {reply, ok, St};
-        _ -> {reply, error, not_implemented, "TODO"}
+        _ -> {reply, error, user_not_joined, "Tried to write message to channel when not connected"}
     end;
 
 %% Get current nick

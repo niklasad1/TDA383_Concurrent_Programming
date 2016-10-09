@@ -33,60 +33,39 @@ handle(St, {connect, Gui, Nick}) ->
 
 handle(St, {disconnect, Gui, Nick}) ->
   ?LOG({"serverDisconnect", Gui, Nick}),
-  case find(St#server_st.conn, Gui) of
-     found -> 
-      NewSt = St#server_st{conn = delete(St#server_st.conn, Gui)},
-      {reply,ok,NewSt};
-     not_found -> {reply, user_not_conneted ,St}
-  end; 
+  % search channel list for joined channels
+  % 
+  X = users_in_channel(St#server_st.channels, Nick),
+  io:format("User in channel ~p ~n",[X]),
+  case X of
+      found -> {reply, leave_channels_first,St#server_st{}};
+      not_found -> reply_handler(St, Gui, disconnect)
+  end;
 	       
 handle(St,{join_channel, Ch, Gui, Nick}) ->
-    % TODO
-    % if
-    %   client_connect(St, Gui) -> ok,
-    %   _ -> {reply, cant_join_channel, St#server_st{}}
-    % end,
-
-    PriorList=St#server_st.channels,
-     % St#server_st.channels append to 
-     % if nick is in channels ret user_already in channel
-     % else append to channels []
-    NewCh = do(St#server_st.channels, Ch, Gui,Nick, join),
-    case NewCh =:=PriorList of
-            true ->
-	         {reply, cant_join_channel, St#server_st{}};
-            false ->
-	         {reply, joined_channel, St#server_st{channels=NewCh}}
+    X = client_connect(St, Gui),
+    ?LOG({"serverJoin", St#server_st.conn, X}),
+    case X of
+      not_connected -> {reply, cant_join_channel,St#server_st{}};
+      connected -> reply_handler(St, Ch, Gui,Nick, join)
     end;
 
-handle(St,{join_channel, Ch, Gui, Nick}) ->
-    {reply, cant_join_channel, St#server_st{}};
-
-
 handle(St,{exit_channel, Ch, Gui, Nick}) ->
-    PriorList=St#server_st.channels,
-     % St#server_st.channels append to 
-     % if nick is in channels ret user_already in channel
-     % else append to channels []
-% do([{Channel,ChL}|Rest],Ch, Gui, Nick, join) ->
-    NewCh = do(St#server_st.channels, Ch, Gui, Nick, exit),
-    case NewCh =:=PriorList of
-            true ->
-	         {reply, failed_exit_channel, St#server_st{}};
-            false ->
-	         {reply, success_exit_channel, St#server_st{channels=NewCh}}
+    X = client_connect(St, Gui),
+    ?LOG({"serverExit", St#server_st.conn, X}),
+    case X of
+      not_connected -> {reply, failed_exit_channel,St#server_st{}};
+      connected -> reply_handler(St, Ch, Gui,Nick, exit)
     end;
 
 handle(St, {msg_from_GUI, Channel, Nick, Msg, GuiName}) ->
-    ?LOG({"serverMsgFromGUI", Channel, Nick, Msg, GuiName}),
-    L=findchannel_list(St#server_st.channels, Channel),
-    case L of
-     does_not_exist -> {reply, {error, error, "TODO"},St};
-     _ ->    
-        % channel exist, then find nick
-        sendmessages(L, {Channel, Nick, Msg, GuiName}),
-        {reply, ok, St}
-    end. 
+    X = client_connect(St, GuiName),
+    ?LOG({"serverExit", St#server_st.conn, X}),
+    case X of
+      not_connected -> {reply, error,St#server_st{}};
+      connected -> reply_handler(St, Channel,Nick,Msg,GuiName)
+    end.
+    
      
 findchannel_list([{FirstChannel,L}|Rest], InputChannel) ->
      case FirstChannel=:=InputChannel of
@@ -179,10 +158,55 @@ delete([], _) ->
 client_connect(St,Gui) ->
  % loop through St#conn if found return true else return false
  case find(St#server_st.conn, Gui) of 
-    found -> true;
-    not_found -> false
+    found -> connected;
+    not_found -> not_connected
  end.
 
+reply_handler(St, Ch, Gui,Nick, join) ->
+    PriorList=St#server_st.channels,
+    NewCh = do(St#server_st.channels, Ch, Gui,Nick, join),
+    case NewCh =:=PriorList of
+            true ->
+	         {reply, cant_join_channel, St#server_st{}};
+            false ->
+	         {reply, joined_channel, St#server_st{channels=NewCh}}
+    end;
+reply_handler(St, Ch, Gui,Nick, exit) ->
+    PriorList=St#server_st.channels,
+    NewCh = do(St#server_st.channels, Ch, Gui,Nick, exit),
+    case NewCh =:=PriorList of
+            true ->
+	         {reply, failed_exit_channel, St#server_st{}};
+            false ->
+	         {reply,success_exit_channel, St#server_st{channels=NewCh}}
+    end;
+
+reply_handler(St, Channel,Nick,Msg,GuiName) ->
+    L=findchannel_list(St#server_st.channels, Channel),
+    case L of
+     does_not_exist -> {reply, {error, error, "TODO"},St};
+     _ ->
+        % channel exist, then find nick
+        % if nick in channel then do ->
+        sendmessages(L, {Channel, Nick, Msg, GuiName}),
+        {reply, ok, St}
+    end.
+reply_handler(St, Gui, disconnect) ->
+  case find(St#server_st.conn, Gui) of
+         found -> 
+            NewSt = St#server_st{conn = delete(St#server_st.conn, Gui)},
+                  {reply,ok,NewSt};
+         not_found -> {reply, user_not_conneted ,St}
+  end. 
 
 
+
+% {channel,[{gui,nick}]}
+users_in_channel([{_,{Gui,Nick}}|Rest], N) ->
+     case Nick=:=N of
+         true -> found;
+	       false -> users_in_channel(Rest,N)
+     end;
+users_in_channel([], _) ->
+     not_found.
 
