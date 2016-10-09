@@ -25,21 +25,22 @@ initial_state(Nick, GUIName) ->
 %% requesting process and NewState is the new state of the client.
 
 %% Connect to server
-handle(St, {connect, Server}) when St#client_st.is_conn =:= false ->
+handle(St, {connect, Server}) ->
     ?LOG({clientConnect,St,Server}),
     ServerAtom = list_to_atom(Server),
     try genserver:request(ServerAtom, {connect, St#client_st.gui,St#client_st.nick}) of
       ok -> 
         NewSt = St#client_st{is_conn=true, server=ServerAtom}, 
         {reply, ok, NewSt};
-      true -> {reply, nick_taken, "Nick taken"}
+      _ ->
+        {reply, {error,nick_taken, "Nick taken"},St}
       catch
         exit:"Timeout" ->
           {reply, {error, server_not_reached, "Server Timeout"}, St}
     end;
 
-handle(St, {connect, _}) ->
-  {reply, {error, user_already_connected, "ALREADY CONNECTED"}, St};
+% handle(St, {connect, _}) ->
+%   {reply, {error, user_already_connected, "ALREADY CONNECTED"}, St};
 
 %% Disconnect from server
 handle(St, disconnect) when St#client_st.is_conn =:= true ->
