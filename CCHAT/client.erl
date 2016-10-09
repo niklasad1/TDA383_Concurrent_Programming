@@ -32,11 +32,12 @@ handle(St, {connect, Server}) ->
       ok -> 
         NewSt = St#client_st{is_conn=true, server=ServerAtom}, 
         {reply, ok, NewSt};
-      _ ->
+      user_already_connected ->
         {reply, {error,nick_taken, "Nick taken"},St}
       catch
         exit:"Timeout" ->
-          {reply, {error, server_not_reached, "Server Timeout"}, St}
+          {reply, {error, server_not_reached, "Server Timeout"}, St};
+	error:_ -> {reply, {error, server_not_reached, "Non existing server"}, St}
     end;
 
 % handle(St, {connect, _}) ->
@@ -131,7 +132,7 @@ handle(St, {nick, Nick}) when St#client_st.is_conn =:= false ->
     {reply, ok, NewSt};
 
 handle(St, {nick, _}) ->
-  {reply, {error, not_implemented, "nick is only allowed to be changed offline"},St};
+  {reply, {error, user_already_connected, "nick is only allowed to be changed offline"},St};
 
 %% Incoming message
 handle(St = #client_st { gui = GUIName }, {incoming_msg, Channel, Name, Msg}) ->
