@@ -40,61 +40,78 @@ handle(St, {disconnect, Gui, Nick}) ->
      not_found -> {reply, user_not_conneted ,St}
   end; 
 	       
-handle(St,{join_channel, PotentialChannel, Gui, Nick}) ->
-     PriorList=St#server_st.channels,
-     PostList=do(PriorList,PotentialChannel, Gui, join),
-     case PostList=:=PriorList of
+handle(St,{join_channel, Ch, Gui, Nick}) ->
+    % TODO
+    % if
+    %   client_connect(St, Gui) -> ok,
+    %   _ -> {reply, cant_join_channel, St#server_st{}}
+    % end,
+
+    PriorList=St#server_st.channels,
+     % St#server_st.channels append to 
+     % if nick is in channels ret user_already in channel
+     % else append to channels []
+    NewCh = do(St#server_st.channels, Ch, Gui,Nick, join),
+    case NewCh =:=PriorList of
             true ->
 	         {reply, cant_join_channel, St#server_st{}};
             false ->
-	         {reply, joined_channel, St#server_st{channels=PostList}}
-     end;
+	         {reply, joined_channel, St#server_st{channels=NewCh}}
+    end;
 
-handle(St,{exit_channel, PotentialChannel, Gui, Nick}) ->
-     PriorList=St#server_st.channels,
-     PostList=do(PriorList, PotentialChannel, Gui, exit),
-     case PostList=:=PriorList of
-          true ->
-              {reply, failed_exit_channel, St#server_st{}};
-          false ->
-	            {reply, success_exit_channel, St#server_st{channels=PostList}}
-     end;
+handle(St,{join_channel, Ch, Gui, Nick}) ->
+    {reply, cant_join_channel, St#server_st{}};
 
+
+handle(St,{exit_channel, Ch, Gui, Nick}) ->
+    PriorList=St#server_st.channels,
+     % St#server_st.channels append to 
+     % if nick is in channels ret user_already in channel
+     % else append to channels []
+% do([{Channel,ChL}|Rest],Ch, Gui, Nick, join) ->
+    NewCh = do(St#server_st.channels, Ch, Gui, Nick, exit),
+    case NewCh =:=PriorList of
+            true ->
+	         {reply, failed_exit_channel, St#server_st{}};
+            false ->
+	         {reply, success_exit_channel, St#server_st{channels=NewCh}}
+    end;
 
 handle(St, {msg_from_GUI, Channel, Nick, Msg, GuiName}) ->
-  ?LOG({"serverMsgFromGUI", Channel, Nick, Msg, GuiName}),
-  L=findchannel_list(St#server_st.channels, Channel),
-  
-  io:format("~w~n~w~n",[L, GuiName]),
-     sendmessages(L, {Channel, Nick, Msg, GuiName}),
+    ?LOG({"serverMsgFromGUI", Channel, Nick, Msg, GuiName}),
+    L=findchannel_list(St#server_st.channels, Channel),
+    case L of
+     does_not_exist -> {reply, {error, error, "TODO"},St};
+     _ ->    
+        % channel exist, then find nick
+        sendmessages(L, {Channel, Nick, Msg, GuiName}),
+        {reply, ok, St}
+    end. 
      
-      % TODO!!!!!! 
-      % find all clients, by unique name(PID), broadcast to all connect clients
-      % in chatroom, think about concurrency!!!!, may spawn a process for each
-      % client
-      % Possiby store messages in buffer until sent
-      {reply, ok, St}.
-
-findchannel_list([{FirstChannel,_,GuiList}|Rest], InputChannel) ->
+findchannel_list([{FirstChannel,L}|Rest], InputChannel) ->
      case FirstChannel=:=InputChannel of
          true ->
-	      GuiList;
+	      L;
 	 false ->
 	      findchannel_list(Rest,InputChannel)
      end;
-findchannel_list([], InputChannel) ->
+
+findchannel_list([], _) ->
      does_not_exist.
-sendmessages([FirstGui|Rest], {Channel, Nick, Msg, MessageSender}) ->
-      case FirstGui =:= MessageSender of
+
+sendmessages([{G,_}|Rest], {Channel, Nick, Msg, MessageSender}) ->
+      case G =:= MessageSender of
           true ->
-	      sendmessages(Rest, {Channel, Nick, Msg, MessageSender});
-	  false ->
-	      spawn_link(fun() ->
-	       gen_server:call(FirstGui, {msg_to_GUI, atom_to_list(Channel), atom_to_list(Nick)++"> "++Msg}) end),
-	      sendmessages(Rest,{Channel, Nick, Msg, MessageSender})
+	          sendmessages(Rest, {Channel, Nick, Msg, MessageSender});
+	        false ->
+	          spawn_link(fun() ->
+	          gen_server:call(G, {msg_to_GUI, atom_to_list(Channel), atom_to_list(Nick)++"> "++Msg}) end),
+	          sendmessages(Rest,{Channel, Nick, Msg, MessageSender})
        end; 
+
 sendmessages([],_) ->
-ok.
+    ok.
+
 find([First|Rest], A) ->
     case First=:=A of
        true ->
@@ -105,42 +122,47 @@ find([First|Rest], A) ->
 find([],_) ->
     not_found.
 
+
 % add and do (temp names) adds a gui to a channel (or server) if not already in it
-add([FirstGui|Rest], InputGui, join) ->
-     case FirstGui=:=InputGui of
+add([{G,N}|Rest], {Gui, Nick}, join) ->
+    ?LOG({"addJoin", {G, N, Rest}}),
+    % {gui, nick} - ChL 
+    case N=:=Nick of
           true ->
-	       [FirstGui|Rest];
-	  false ->
-	       [FirstGui] ++ add(Rest,InputGui, join)
-	       end;
-add([FirstGui|Rest], InputGui,exit) ->
-     case FirstGui=:=InputGui of
+         [{G,N}|Rest];
+    false ->
+         [{G,N}] ++ add(Rest,{Gui,Nick}, join)
+         end;
+add([{G,N}|Rest], {Gui,Nick}, exit) ->
+     case N=:=Nick of
           true ->
-	      Rest;
-	  false ->
-	      [FirstGui] ++ add(Rest,InputGui, exit)
+        Rest;
+    false ->
+        [{G,N}] ++ add(Rest,{Gui,Nick}, exit)
      end;
-add([], InputGui, join) ->
-  [InputGui];
+add([], {G,N}, join) ->
+  io:format("Add to ch list ~p ~p ~n",[G,N]),
+  [{G,N}];
 add([],_, exit) ->
   [].
-do([{ChannelName, NickList, GuiList}|Rest], InputChannel, InputGui, join) ->
-      case ChannelName=:=InputChannel of
+
+do([{Channel,ChL}|Rest],Ch, Gui, Nick, join) ->
+      case Channel=:=Ch of
             true ->
-	         [{ChannelName,NickList, add(GuiList, InputGui,join)}] ++ Rest;
+	         [{Channel,add(ChL, {Gui,Nick},join)}] ++ Rest;
             false ->
-	         [{ChannelName,NickList,GuiList}]++do(Rest,InputChannel,InputGui,join)
+	         [{Channel,ChL}]++do(Rest,Ch,Gui, Nick, join)
       end;
-do([{ChannelName, NickList, GuiList}|Rest], InputChannel, InputGui, exit) ->
-      case ChannelName=:=InputChannel of
+do([{Channel,L}|Rest],PotentialChannel, Gui,Nick, exit) ->
+      case Channel==PotentialChannel of
             true ->
-	         [{ChannelName, NickList,  add(GuiList, InputGui,exit)}] ++ Rest;
+	         [{Channel, add(L,{Gui,Nick},exit)}] ++ Rest;
             false ->
-	         [{ChannelName, NickList, GuiList}]++do(Rest, InputChannel, InputGui,exit)
+	         [{Channel, L}]++do(Rest,PotentialChannel,Gui,Nick,exit)
       end;
-do([], InputChannel,InputGui, join) ->
-[{InputChannel, [user01] ,[InputGui]}];
-do([], _, _, exit) ->
+do([],PotentialChannel,Gui,Nick, join) ->
+[{PotentialChannel,[{Gui,Nick}]}];
+do([], _, _, _, exit) ->
 [].
 
 delete([First|Rest],A) ->
@@ -152,4 +174,15 @@ delete([First|Rest],A) ->
     end;
 delete([], _) ->
     [].
+
+% client_connect????? 
+client_connect(St,Gui) ->
+ % loop through St#conn if found return true else return false
+ case find(St#server_st.conn, Gui) of 
+    found -> true;
+    not_found -> false
+ end.
+
+
+
 

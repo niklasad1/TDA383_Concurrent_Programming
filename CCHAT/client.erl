@@ -13,7 +13,7 @@
 %% Produce initial state
 initial_state(Nick, GUIName) ->
     ?LOG({"initialState",Nick,GUIName}),
-    #client_st {gui = list_to_atom(GUIName), nick = Nick, is_conn=false, server=false}.
+    #client_st {gui = list_to_atom(GUIName), nick = list_to_atom(Nick), is_conn=false, server=false}.
     
 %% ---------------------------------------------------------------------------
 
@@ -63,7 +63,7 @@ handle(St, {join, Channel}) ->
         joined_channel ->
 	       {reply, ok, St};
 	      cant_join_channel ->
-	       {reply, {error, not_implemented, "Already in channel"}, St}
+         {reply, {error, user_already_joined, "User already joined channel"}, St}
 	end;
 
 %% Leave channel
@@ -75,7 +75,7 @@ handle(St, {leave, Channel}) ->
         success_exit_channel ->
 	       {reply, ok, St};
 	      failed_exit_channel ->
-	       {reply, {error, not_implemented, "Already in channel"}, St}
+        {reply, {error, user_not_joined, "User not in channel"}, St}
     end;
 
 % Sending messages
@@ -91,7 +91,7 @@ handle(St, {msg_from_GUI, Channel, Msg}) ->
 %% Get current nick
 handle(St, whoami) ->
     ?LOG({handleWhoami,St}),
-    {reply, St#client_st.nick, St} ;
+    {reply, atom_to_list(St#client_st.nick), St} ;
     % {reply, {error, not_implemented, "Not implemented"}, St} ;
 
 %% Change nick
