@@ -35,14 +35,14 @@ handle(St, {connect, Server}) ->
       user_already_connected ->
         {reply, {error,nick_taken, "Nick taken"},St}
       catch
-        exit:"Timeout" ->
-          {reply, {error, server_not_reached, "Server Timeout"}, St};
-	  %Not sure what type of exit message it is (below). (Connect to non-existing server)
-	error:_ -> {reply, {error, server_not_reached, "Non existing server"}, St}
+        _:_ -> {reply, {error,server_not_reached,"Server Timeout"}, St}
+    % IF YOU LOOK AT GENSERVER.ERL other exceptions may be thrown here we catch all instead
+    %     exit:"Timeout" ->
+    %       {reply, {error, server_not_reached, "Server Timeout"}, St};
+		% %Not sure what type of exit message it is (below). (Connect to non-existing server)
+		%     error:_ -> {reply, {error, server_not_reached, "Non existing server"}, St}
     end;
 
-% handle(St, {connect, _}) ->
-%   {reply, {error, user_already_connected, "ALREADY CONNECTED"}, St};
 
 %% Disconnect from server
 handle(St, disconnect) when St#client_st.is_conn =:= true ->
@@ -56,7 +56,7 @@ handle(St, disconnect) when St#client_st.is_conn =:= true ->
             {reply, ok, NewSt};
           true -> {reply, {error, user_not_joined, "User not in channel"}, St}
           catch
-            exit:"Timeout" ->
+            _:_ ->
             {reply, {error, server_not_reached, "Server Timeout"}, St}
         end;
       true ->
@@ -79,7 +79,7 @@ handle(St, {join, Channel}) ->
             {reply, ok, NewSt};
           cant_join_channel -> {reply, {error, user_not_joined, "User not in channel"}, St}
           catch
-            exit:"Timeout" ->
+            _:_ ->
             {reply, {error, server_not_reached, "Server Timeout"}, St}
         end;
       true -> {reply, {error, user_already_joined, "User already in channel"}, St} 
@@ -97,7 +97,7 @@ handle(St, {leave, Channel}) ->
             {reply, ok, NewSt};
           failed_exit_channel -> {reply, {error, user_not_joined, "User not in channel"}, St}
           catch
-            exit:"Timeout" ->
+            _:_->
             {reply, {error, server_not_reached, "Server Timeout"}, St}
         end;
       false -> {reply, {error, user_not_joined, "User not in channel"}, St} 
@@ -112,7 +112,7 @@ handle(St, {msg_from_GUI, Channel, Msg}) ->
           ok -> {reply, ok, St};
           true -> {reply, {error, user_not_joined, "SHould never happend"}, St}
           catch
-            exit:"Timeout" ->
+            _:_ ->
             {reply, {error, error_not_implemented, "Server Timeout"}, St}
         end;
       false -> {reply, {error, user_not_joined, "User not in channel"}, St} 
@@ -123,12 +123,10 @@ handle(St, {msg_from_GUI, Channel, Msg}) ->
 handle(St, whoami) ->
     ?LOG({handleWhoami,St}),
     {reply, atom_to_list(St#client_st.nick), St} ;
-    % {reply, {error, not_implemented, "Not implemented"}, St} ;
 
 %% Change nick
 handle(St, {nick, Nick}) when St#client_st.is_conn =:= false ->
     ?LOG({"handleNick",St,Nick}),
-    % TODO, fix so this can only be perfomed "offline"
     NewSt = St#client_st{nick = list_to_atom(Nick)}, 
     {reply, ok, NewSt};
 
