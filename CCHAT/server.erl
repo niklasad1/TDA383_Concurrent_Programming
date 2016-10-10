@@ -23,35 +23,26 @@ initial_state(ServerName) ->
 
 handle(St, {connect, Gui, Nick}) ->
   ?LOG({"serverConnect", Gui, Nick}),
-  case find(St#server_st.conn, Nick) of
-    not_found -> 
+  case lists:member(Nick,St#server_st.conn) of
+    false -> 
       % timer:sleep(3000),
-      NewSt = St#server_st{conn = St#server_st.conn ++ [Nick]},
+      NewSt = St#server_st{conn = [Nick|St#server_st.conn]},
       io:format("~w~n",[NewSt#server_st.conn]),
       {reply,ok,NewSt};
-    found -> {reply, user_already_connected ,St}
+    true -> {reply, user_already_connected ,St}
   end; 
 
 handle(St, {disconnect, Gui, Nick}) ->
   ?LOG({"serverDisconnect", Gui, Nick}),
-  case find(St#server_st.conn, Nick) of
-     found -> 
-      NewSt = St#server_st{conn = delete(St#server_st.conn, Nick)},
-      {reply,ok,NewSt};
-     not_found -> {reply, user_not_connected ,St}
+  case lists:member(Nick,St#server_st.conn) of
+     false -> {reply, user_not_connected ,St};
+     true -> 
+      NewSt = St#server_st{conn = lists:delete(Nick,St#server_st.conn)},
+      {reply,ok,NewSt}
   end; 
 	       
 handle(St,{join_channel, Ch, Gui, Nick}) ->
-    % TODO
-    % if
-    %   client_connect(St, Gui) -> ok,
-    %   _ -> {reply, cant_join_channel, St#server_st{}}
-    % end,
-
     PriorList=St#server_st.channels,
-     % St#server_st.channels append to 
-     % if nick is in channels ret user_already in channel
-     % else append to channels []
     NewCh = do(St#server_st.channels, Ch, Gui,Nick, join),
     case NewCh =:=PriorList of
             true ->
@@ -59,10 +50,6 @@ handle(St,{join_channel, Ch, Gui, Nick}) ->
             false ->
 	         {reply, joined_channel, St#server_st{channels=NewCh}}
     end;
-
-handle(St,{join_channel, Ch, Gui, Nick}) ->
-    {reply, cant_join_channel, St#server_st{}};
-
 
 handle(St,{exit_channel, Ch, Gui, Nick}) ->
     PriorList=St#server_st.channels,
@@ -113,17 +100,6 @@ sendmessages([{G,_}|Rest], {Channel, Nick, Msg, MessageSender}) ->
 sendmessages([],_) ->
     ok.
 
-find([First|Rest], A) ->
-    case First=:=A of
-       true ->
-           found;
-       false ->
-           find(Rest,A)
-    end;
-find([],_) ->
-    not_found.
-
-
 % add and do (temp names) adds a gui to a channel (or server) if not already in it
 add([{G,N}|Rest], {Gui, Nick}, join) ->
     ?LOG({"addJoin", {G, N, Rest}}),
@@ -165,25 +141,4 @@ do([],PotentialChannel,Gui,Nick, join) ->
 [{PotentialChannel,[{Gui,Nick}]}];
 do([], _, _, _, exit) ->
 [].
-
-delete([First|Rest],A) ->
-    if
-      First=:=A ->  
-        Rest;
-      true ->
-        [First|delete(Rest,A)]
-    end;
-delete([], _) ->
-    [].
-
-% client_connect????? 
-client_connect(St,Gui) ->
- % loop through St#conn if found return true else return false
- case find(St#server_st.conn, Gui) of 
-    found -> true;
-    not_found -> false
- end.
-
-
-
 
