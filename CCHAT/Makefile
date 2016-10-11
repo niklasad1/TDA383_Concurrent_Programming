@@ -23,6 +23,9 @@ run_robustness_tests: all
 run_concurrency_tests: all
 	erl -noshell -eval "eunit:test({timeout, 10, {test,test_client,process_usage_test}}), halt()"
 
+profile: all
+	erl -noshell -eval "fprof:apply(test_client,many_users_many_channels, [5]), fprof:profile(), fprof:analyse()."
+
 PERFTESTS = "[\
 {timeout, 60, fun () -> test_client:many_users_one_channel(20, one) end},\
 {timeout, 60, fun () -> test_client:many_users_one_channel(5, all) end},\

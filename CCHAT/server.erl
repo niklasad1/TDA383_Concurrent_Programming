@@ -11,7 +11,7 @@
 
 % Produce initial state
 initial_state(ServerName) ->
-    #server_st{servers = ServerName, conn = [], channels = []}.
+    #server_st{servers = ServerName, conn = [], channels = maps:new()}.
 
 %% ---------------------------------------------------------------------------
 
@@ -41,41 +41,123 @@ handle(St, {disconnect, Gui, Nick}) ->
       {reply,ok,NewSt}
   end; 
 	       
-handle(St,{join_channel, Ch, Gui, Nick}) ->
-    PriorList=St#server_st.channels,
-    NewCh = do(St#server_st.channels, Ch, Gui,Nick, join),
-    case NewCh =:=PriorList of
-            true ->
-	         {reply, cant_join_channel, St#server_st{}};
-            false ->
-	         {reply, joined_channel, St#server_st{channels=NewCh}}
-    end;
+% handle(St,{join_channel, Ch, Gui, Nick}) ->
+%     PriorList=St#server_st.channels,
+%     NewCh = do(St#server_st.channels, Ch, Gui,Nick, join),
+%     case NewCh =:=PriorList of
+%             true ->
+%            {reply, cant_join_channel, St#server_st{}};
+%             false ->
+%            {reply, joined_channel, St#server_st{channels=NewCh}}
+%     end;
 
-handle(St,{exit_channel, Ch, Gui, Nick}) ->
-    PriorList=St#server_st.channels,
-     % St#server_st.channels append to 
-     % if nick is in channels ret user_already in channel
-     % else append to channels []
-% do([{Channel,ChL}|Rest],Ch, Gui, Nick, join) ->
-    NewCh = do(St#server_st.channels, Ch, Gui, Nick, exit),
-    case NewCh =:=PriorList of
-            true ->
-	         {reply, failed_exit_channel, St#server_st{}};
-            false ->
-	         {reply, success_exit_channel, St#server_st{channels=NewCh}}
-    end;
+handle(St,{join_channel,Ch,Gui,Nick}) ->
+  ?LOG({"serverJoinChannel", St}),
+  case maps:is_key(Ch,St#server_st.channels) of
+    false ->
+      NewSt = St#server_st{channels =
+                           maps:put(Ch,[{Gui,Nick}],St#server_st.channels)},
+      {reply, joined_channel, NewSt};
+    true -> 
+      io:format("ISKEY TRUE~n"),
+      List = maps:get(Ch,St#server_st.channels),
+      ?LOG({"serverKey_ISKEY", List}),
+      case lists:member({Gui,Nick},List) of
+           false -> 
+              NewSt = maps:update(Ch,[{Gui,Nick}|List],St#server_st.channels),
+              io:format("NewSt key already in channel ~p ~n", [NewSt]),
+              {reply, joined_channel, St#server_st{channels = NewSt}};
+           true ->
+              {reply, cant_join_channel, St#server_st{}}
+      end
+  end;
+      %
+      % case lists:key({Gui,Nick},St#server_st.channels) of
+      %      false -> ok
+      % end;
 
-handle(St, {msg_from_GUI, Channel, Nick, Msg, GuiName}) ->
-    ?LOG({"serverMsgFromGUI", Channel, Nick, Msg, GuiName}),
-    L=findchannel_list(St#server_st.channels, Channel),
-    case L of
-     does_not_exist -> {reply, {error, error, "TODO"},St};
-     _ ->    
-        % channel exist, then find nick
-        sendmessages(L, {Channel, Nick, Msg, GuiName}),
-        {reply, ok, St}
-    end. 
-     
+% handle(St,{exit_channel, Ch, Gui, Nick}) ->
+%     PriorList=St#server_st.channels,
+%      % St#server_st.channels append to
+%      % if nick is in channels ret user_already in channel
+%      % else append to channels []
+% % do([{Channel,ChL}|Rest],Ch, Gui, Nick, join) ->
+%     NewCh = do(St#server_st.channels, Ch, Gui, Nick, exit),
+%     case NewCh =:=PriorList of
+%             true ->
+%            {reply, failed_exit_channel, St#server_st{}};
+%             false ->
+%            {reply, success_exit_channel, St#server_st{channels=NewCh}}
+%     end;
+
+handle(St,{exit_channel,Ch,Gui,Nick}) ->
+  ?LOG({"serverExitChannel", St}),
+  case maps:is_key(Ch,St#server_st.channels) of
+    false ->
+      {reply, failed_exit_channel, St};
+    true -> 
+      List = maps:get(Ch,St#server_st.channels),
+      ?LOG({"serverExitChannel_ISKEY", List}),
+      case lists:member({Gui,Nick},List) of
+           false -> 
+              io:format("NOT IN CHANNEL~n"),
+              {reply, failed_exit_channel, St};
+           true ->
+              io:format("IN CHANNEL REMOVE"),
+              NewSt = maps:update(Ch,lists:delete({Gui,Nick},List),St#server_st.channels),
+              {reply, success_exit_channel, St#server_st{channels = NewSt}}
+      end
+  end;
+
+% handle(St, {msg_from_GUI, Channel, Nick, Msg, GuiName}) ->
+%     ?LOG({"serverMsgFromGUI", Channel, Nick, Msg, GuiName}),
+%     L=findchannel_list(St#server_st.channels, Channel),
+%     case L of
+%      does_not_exist -> {reply, {error, error, "TODO"},St};
+%      _ ->
+%         % channel exist, then find nick
+%         sendmessages(L, {Channel, Nick, Msg, GuiName}),
+%         {reply, ok, St}
+%     end.
+    
+
+handle(St,{msg_from_GUI,Ch,Nick,Msg,Gui}) ->
+  ?LOG({"msg_from_GUI", St}),
+  case maps:is_key(Ch,St#server_st.channels) of
+    false ->
+      {reply, {error,error}, St};
+    true -> 
+      List = maps:get(Ch,St#server_st.channels),
+      ?LOG({"serverMG_ISKEY", List}),
+      case lists:member({Gui,Nick},List) of
+           false -> 
+              io:format("NOT IN CHANNEL~n"),
+              {reply, {error,error}, St};
+           true ->
+              io:format("IN CHANNEL SEND"),
+              send(List,{Ch,Nick,Gui,Msg}),
+              {reply, ok, St}
+      end
+  end.
+
+send([{R_Gui,R_Nick}|Rest], {Ch, S_Nick, S_Gui, Msg}) ->
+    ?LOG({"sendServer",R_Gui,R_Nick, Rest}),
+    case R_Gui =:= S_Gui of
+
+          false ->
+            io:format("SEND TO ~p ~n", [R_Gui]),
+            % gen_server:call(R_Gui, {msg_to_GUI, atom_to_list(Ch),
+            %                         atom_to_list(S_Nick)++"> "++Msg}),
+            sendmessages(Rest,{Ch, S_Nick, S_Gui,Msg});
+          true ->
+            io:format("DONT SEND TO YOURSELF ~n"),
+            sendmessages(Rest, {Ch, S_Nick, S_Gui, Msg})
+      end;
+
+send([], _) ->
+  ok.
+
+
 findchannel_list([{FirstChannel,L}|Rest], InputChannel) ->
      case FirstChannel=:=InputChannel of
          true ->
