@@ -28,7 +28,7 @@ initial_state(Nick, GUIName) ->
 handle(St, {connect, Server}) ->
     ?LOG({clientConnect,St,Server}),
     ServerAtom = list_to_atom(Server),
-    try genserver:request(ServerAtom, {connect, St#client_st.gui,St#client_st.nick}) of
+    try genserver:request(ServerAtom, {connect, self(),St#client_st.nick}) of
       ok -> 
         NewSt = St#client_st{is_conn=true, server=ServerAtom}, 
         {reply, ok, NewSt};
@@ -47,7 +47,7 @@ handle(St, {connect, Server}) ->
 %% Disconnect from server
 handle(St, disconnect) when St#client_st.is_conn =:= true ->
     ?LOG({clientDisconnect,St}),
-    Data = {disconnect, St#client_st.gui, St#client_st.nick},
+    Data = {disconnect, self(), St#client_st.nick},
     if
       St#client_st.channels =:= [] -> 
         try genserver:request(St#client_st.server,Data) of
@@ -69,7 +69,7 @@ handle(St, disconnect) ->
 
 % Join channel
 handle(St, {join, Channel}) ->
-    Data={join_channel, list_to_atom(Channel), St#client_st.gui, St#client_st.nick},
+    Data={join_channel, list_to_atom(Channel), self(), St#client_st.nick},
     ?LOG({"clientJoin", Data}),
     case lists:member(Channel, St#client_st.channels) of
       false ->
@@ -87,7 +87,7 @@ handle(St, {join, Channel}) ->
 
 %% Leave channel
 handle(St, {leave, Channel}) ->
-    Data={exit_channel, list_to_atom(Channel), St#client_st.gui, St#client_st.nick},
+    Data={exit_channel, list_to_atom(Channel), self(), St#client_st.nick},
     ?LOG({"clientLeave", Data}),
     case lists:member(Channel, St#client_st.channels) of
       true ->
@@ -105,7 +105,7 @@ handle(St, {leave, Channel}) ->
 
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->
-    Data={msg_from_GUI, list_to_atom(Channel), St#client_st.nick ,Msg, St#client_st.gui},
+    Data={msg_from_GUI, list_to_atom(Channel), St#client_st.nick ,Msg,self()},
     case lists:member(Channel, St#client_st.channels) of
       true ->
         try genserver:request(St#client_st.server,Data) of

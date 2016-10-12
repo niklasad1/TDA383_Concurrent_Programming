@@ -21,8 +21,8 @@ initial_state(ServerName) ->
 %% {reply, Reply, NewState}, where Reply is the reply to be sent to the client
 %% and NewState is the new state of the server.
 
-handle(St, {connect, Gui, Nick}) ->
-  ?LOG({"serverConnect", Gui, Nick}),
+handle(St, {connect, Pid, Nick}) ->
+  ?LOG({"serverConnect", Pid, Nick}),
   case lists:member(Nick,St#server_st.conn) of
     false -> 
       % timer:sleep(3000),
@@ -32,8 +32,8 @@ handle(St, {connect, Gui, Nick}) ->
     true -> {reply, user_already_connected ,St}
   end; 
 
-handle(St, {disconnect, Gui, Nick}) ->
-  ?LOG({"serverDisconnect", Gui, Nick}),
+handle(St, {disconnect, Pid, Nick}) ->
+  ?LOG({"serverDisconnect", Pid, Nick}),
   case lists:member(Nick,St#server_st.conn) of
      false -> {reply, user_not_connected ,St};
      true -> 
@@ -51,20 +51,20 @@ handle(St, {disconnect, Gui, Nick}) ->
 %            {reply, joined_channel, St#server_st{channels=NewCh}}
 %     end;
 
-handle(St,{join_channel,Ch,Gui,Nick}) ->
+handle(St,{join_channel,Ch,Pid,Nick}) ->
   ?LOG({"serverJoinChannel", St}),
   case maps:is_key(Ch,St#server_st.channels) of
     false ->
       NewSt = St#server_st{channels =
-                           maps:put(Ch,[{Gui,Nick}],St#server_st.channels)},
+                           maps:put(Ch,[{Pid,Nick}],St#server_st.channels)},
       {reply, joined_channel, NewSt};
     true -> 
       io:format("ISKEY TRUE~n"),
       List = maps:get(Ch,St#server_st.channels),
       ?LOG({"serverKey_ISKEY", List}),
-      case lists:member({Gui,Nick},List) of
+      case lists:member({Pid,Nick},List) of
            false -> 
-              NewSt = maps:update(Ch,[{Gui,Nick}|List],St#server_st.channels),
+              NewSt = maps:update(Ch,[{Pid,Nick}|List],St#server_st.channels),
               io:format("NewSt key already in channel ~p ~n", [NewSt]),
               {reply, joined_channel, St#server_st{channels = NewSt}};
            true ->
@@ -90,7 +90,7 @@ handle(St,{join_channel,Ch,Gui,Nick}) ->
 %            {reply, success_exit_channel, St#server_st{channels=NewCh}}
 %     end;
 
-handle(St,{exit_channel,Ch,Gui,Nick}) ->
+handle(St,{exit_channel,Ch,Pid,Nick}) ->
   ?LOG({"serverExitChannel", St}),
   case maps:is_key(Ch,St#server_st.channels) of
     false ->
@@ -98,13 +98,13 @@ handle(St,{exit_channel,Ch,Gui,Nick}) ->
     true -> 
       List = maps:get(Ch,St#server_st.channels),
       ?LOG({"serverExitChannel_ISKEY", List}),
-      case lists:member({Gui,Nick},List) of
+      case lists:member({Pid,Nick},List) of
            false -> 
               io:format("NOT IN CHANNEL~n"),
               {reply, failed_exit_channel, St};
            true ->
               io:format("IN CHANNEL REMOVE"),
-              NewSt = maps:update(Ch,lists:delete({Gui,Nick},List),St#server_st.channels),
+              NewSt = maps:update(Ch,lists:delete({Pid,Nick},List),St#server_st.channels),
               {reply, success_exit_channel, St#server_st{channels = NewSt}}
       end
   end;
@@ -121,7 +121,7 @@ handle(St,{exit_channel,Ch,Gui,Nick}) ->
 %     end.
     
 
-handle(St,{msg_from_GUI,Ch,Nick,Msg,Gui}) ->
+handle(St,{msg_from_GUI,Ch,Nick,Msg,Pid}) ->
   ?LOG({"msg_from_GUI", St}),
   case maps:is_key(Ch,St#server_st.channels) of
     false ->
@@ -129,98 +129,32 @@ handle(St,{msg_from_GUI,Ch,Nick,Msg,Gui}) ->
     true -> 
       List = maps:get(Ch,St#server_st.channels),
       ?LOG({"serverMG_ISKEY", List}),
-      case lists:member({Gui,Nick},List) of
+      case lists:member({Pid,Nick},List) of
            false -> 
               io:format("NOT IN CHANNEL~n"),
               {reply, {error,error}, St};
            true ->
               io:format("IN CHANNEL SEND"),
-              send(List,{Ch,Nick,Gui,Msg}),
-              {reply, ok, St}
+              Res = genserver:request(Pid,{incoming_msg, Ch, Nick, Msg}),
+              io:format("GOT REPLY ~p ~n",[Res]),
+              {reply,ok,St}
       end
   end.
 
-send([{R_Gui,R_Nick}|Rest], {Ch, S_Nick, S_Gui, Msg}) ->
-    ?LOG({"sendServer",R_Gui,R_Nick, Rest}),
-    case R_Gui =:= S_Gui of
 
-          false ->
-            io:format("SEND TO ~p ~n", [R_Gui]),
-            % gen_server:call(R_Gui, {msg_to_GUI, atom_to_list(Ch),
-            %                         atom_to_list(S_Nick)++"> "++Msg}),
-            sendmessages(Rest,{Ch, S_Nick, S_Gui,Msg});
-          true ->
-            io:format("DONT SEND TO YOURSELF ~n"),
-            sendmessages(Rest, {Ch, S_Nick, S_Gui, Msg})
-      end;
+% send([{R_Pid,R_Nick}|Rest], {Ch, S_Nick, S_Pid, Msg,St}) ->
+%     ?LOG({"sendServer",R_Pid,R_Nick, Rest}),
+%     case R_Pid =:= S_Pid of
+%           false ->
+%             M = {incoming_msg, Ch, S_Nick, Msg},
+%             io:format("SEND TO ~p DATA ~p ~n", [R_Pid,M]),
+%             genserver:request(R_Pid, {incoming_msg}),
+%             % send(Rest,{Ch, S_Nick, S_Pid,Msg}),
+%             {reply, ok, St};
+%           true ->
+%             io:format("DONT SEND TO YOURSELF ~n"),
+%             send(Rest, {Ch, S_Nick, S_Pid, Msg})
+%       end;
 
 send([], _) ->
   ok.
-
-
-findchannel_list([{FirstChannel,L}|Rest], InputChannel) ->
-     case FirstChannel=:=InputChannel of
-         true ->
-	      L;
-	 false ->
-	      findchannel_list(Rest,InputChannel)
-     end;
-
-findchannel_list([], _) ->
-     does_not_exist.
-
-sendmessages([{G,_}|Rest], {Channel, Nick, Msg, MessageSender}) ->
-      case G =:= MessageSender of
-          true ->
-	          sendmessages(Rest, {Channel, Nick, Msg, MessageSender});
-	        false ->
-	          spawn_link(fun() ->
-	          gen_server:call(G, {msg_to_GUI, atom_to_list(Channel), atom_to_list(Nick)++"> "++Msg}) end),
-	          sendmessages(Rest,{Channel, Nick, Msg, MessageSender})
-       end; 
-
-sendmessages([],_) ->
-    ok.
-
-% add and do (temp names) adds a gui to a channel (or server) if not already in it
-add([{G,N}|Rest], {Gui, Nick}, join) ->
-    ?LOG({"addJoin", {G, N, Rest}}),
-    % {gui, nick} - ChL 
-    case N=:=Nick of
-          true ->
-         [{G,N}|Rest];
-    false ->
-         [{G,N}] ++ add(Rest,{Gui,Nick}, join)
-         end;
-add([{G,N}|Rest], {Gui,Nick}, exit) ->
-     case N=:=Nick of
-          true ->
-        Rest;
-    false ->
-        [{G,N}] ++ add(Rest,{Gui,Nick}, exit)
-     end;
-add([], {G,N}, join) ->
-  io:format("Add to ch list ~p ~p ~n",[G,N]),
-  [{G,N}];
-add([],_, exit) ->
-  [].
-
-do([{Channel,ChL}|Rest],Ch, Gui, Nick, join) ->
-      case Channel=:=Ch of
-            true ->
-	         [{Channel,add(ChL, {Gui,Nick},join)}] ++ Rest;
-            false ->
-	         [{Channel,ChL}]++do(Rest,Ch,Gui, Nick, join)
-      end;
-do([{Channel,L}|Rest],PotentialChannel, Gui,Nick, exit) ->
-      case Channel==PotentialChannel of
-            true ->
-	         [{Channel, add(L,{Gui,Nick},exit)}] ++ Rest;
-            false ->
-	         [{Channel, L}]++do(Rest,PotentialChannel,Gui,Nick,exit)
-      end;
-do([],PotentialChannel,Gui,Nick, join) ->
-[{PotentialChannel,[{Gui,Nick}]}];
-do([], _, _, _, exit) ->
-[].
-
