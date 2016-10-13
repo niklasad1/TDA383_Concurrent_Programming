@@ -1,6 +1,6 @@
 -module(channel).
 -include_lib("./defs.hrl").
--export([start/3, initial_state/0, handle/2]).
+-export([start/3, initial_state/1, handle/2]).
 -ifdef(debug).
 -define(LOG(X), io:format("{~p,~p}: ~p~n", [?MODULE,?LINE,X])).
 -else.
@@ -8,8 +8,8 @@
 -endif.
 
 % list with Pid and Nick
-initial_state() ->
-    #ch_st{channel = []}.
+initial_state(Atom) ->
+    #ch_st{name = Atom, channel = []}.
 
 start(Atom, State, F) ->
   ?LOG({"startChannel", State, F}),
@@ -41,4 +41,22 @@ handle(St, {leave, {Pid,Nick}}) ->
 
 handle(St, {send_msg, {Pid,Nick,Msg}}) ->
   ?LOG({"channelSendMsg", St}),
+  spawn(fun() -> send(St#ch_st.channel, {St#ch_st.name, Pid,Nick,Msg,St}) end),
   {reply,ok,St}.
+
+send([{R_Pid,_}|Rest], {Ch, Pid, Nick, Msg, St}) ->
+    ?LOG({"sendTOCLIENT"}),
+    case R_Pid =:= Pid of
+          false ->
+            spawn(fun() -> 
+                      genserver:request(R_Pid, {incoming_msg, Ch, Nick, Msg}),
+                      {reply, ok, St} 
+                  end),
+            send(Rest,{Ch, Pid, Nick, Msg, St});
+          true ->
+            send(Rest, {Ch, Pid, Nick, Msg, St})
+      end;
+
+send([], _) ->
+  ok.
+

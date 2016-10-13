@@ -25,7 +25,6 @@ handle(St, {connect, Pid, Nick}) ->
   ?LOG({"serverConnect", Pid, Nick}),
   case lists:member(Nick,St#server_st.conn) of
     false -> 
-      % timer:sleep(3000),
       NewSt = St#server_st{conn = [Nick|St#server_st.conn]},
       io:format("~w~n",[NewSt#server_st.conn]),
       {reply,ok,NewSt};
@@ -44,25 +43,19 @@ handle(St, {disconnect, Pid, Nick}) ->
 
 handle(St,{join_channel,Ch,Pid,Nick}) ->
   ?LOG({"serverJoinChannel", Ch}),
-  % Channel = list_to_atom(Ch),
   case lists:member(Ch,St#server_st.channels) of
     false -> 
-      io:format("TIME TO JOIN CHANNEL SENDING MSG ~n"),
-      P = channel:start(Ch, channel:initial_state(), fun channel:handle/2),
-      io:format("spawned process ~p ~n", [P]),
-      R = genserver:request(Ch, {join, {Pid,Nick}}),
+      channel:start(Ch, channel:initial_state(Ch), fun channel:handle/2),
+      genserver:request(Ch, {join, {Pid,Nick}}),
       NewSt = St#server_st{channels = [Ch|St#server_st.channels]},
-      io:format("result ~p ~n",[R]),
       {reply,joined_channel,NewSt};
     true ->
-      io:format("CHANNEL EXIST ~n"),
       genserver:request(Ch, {join, {Pid,Nick}}),
       {reply,joined_channel,St}
   end;
 
 handle(St,{exit_channel,Ch,Pid,Nick}) ->
   ?LOG({"serverExitChannel", St}),
-  % Channel = list_to_atom(Ch),
   case lists:member(Ch,St#server_st.channels) of
     false ->
       {reply, failed_exit_channel, St};
@@ -73,7 +66,6 @@ handle(St,{exit_channel,Ch,Pid,Nick}) ->
 
 handle(St,{msg_from_GUI,Ch,Nick,Msg,Pid}) ->
   ?LOG({"msg_from_GUI", St}),
-  % Channel = list_to_atom(Ch),
   case lists:member(Ch,St#server_st.channels) of
     false ->
       {reply, failed_exit_channel, St};

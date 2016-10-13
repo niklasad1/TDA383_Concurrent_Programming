@@ -8,4 +8,4 @@
 % Add whatever other fields you need.
 -record(server_st, {servers, conn, channels}).
 
--record(ch_st, {channel}).
+-record(ch_st, {name, channel}).

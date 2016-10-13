@@ -19,12 +19,14 @@ loop(State, F) ->
   ?LOG({"genserverLoop", State, F}),
   receive
     {request, From, Ref, Data} ->
+      ?LOG({"request", Ref, Data}),
       maybeWait(From),
       case catch(F(State, Data)) of
         {'EXIT', Reason} ->
           From!{exit, Ref, Reason},
           loop(State, F);
         {reply, R, NewState} ->
+          ?LOG({"reply", R, NewState}),
           From!{result, Ref, R},
           loop(NewState, F)
         end;

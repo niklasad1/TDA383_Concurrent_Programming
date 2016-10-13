@@ -227,6 +227,7 @@ handle_call(shutdown, _From, State) ->
 
 %% Here, the GUI receives a message from the client process!
 handle_call({msg_to_GUI, Channel, Msg}, _From, State = #state{ client = ClientName }) ->
+    io:format("msg_to_GUI ~p ~p ~n", [Channel, Msg]),
     write_channel( with_label(ClientName, channel_id(Channel)), Msg),
     {reply, ok, State} ;
 

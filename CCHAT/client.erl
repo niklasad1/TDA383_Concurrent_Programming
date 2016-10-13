@@ -36,11 +36,6 @@ handle(St, {connect, Server}) ->
         {reply, {error,nick_taken, "Nick taken"},St}
       catch
         _:_ -> {reply, {error,server_not_reached,"Server Timeout"}, St}
-    % IF YOU LOOK AT GENSERVER.ERL other exceptions may be thrown here we catch all instead
-    %     exit:"Timeout" ->
-    %       {reply, {error, server_not_reached, "Server Timeout"}, St};
-		% %Not sure what type of exit message it is (below). (Connect to non-existing server)
-		%     error:_ -> {reply, {error, server_not_reached, "Non existing server"}, St}
     end;
 
 
@@ -105,7 +100,7 @@ handle(St, {leave, Channel}) ->
 
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->
-    Data={msg_from_GUI, list_to_atom(Channel), St#client_st.nick ,Msg,self()},
+    Data={msg_from_GUI, list_to_atom(Channel), St#client_st.nick, list_to_atom(Msg), self()},
     case lists:member(Channel, St#client_st.channels) of
       true ->
         try genserver:request(St#client_st.server,Data) of
@@ -135,6 +130,6 @@ handle(St, {nick, _}) ->
 
 %% Incoming message
 handle(St = #client_st { gui = GUIName }, {incoming_msg, Channel, Name, Msg}) ->
-    ?LOG({"handleIncomingMsg",Channel,Name,Msg}),
-    gen_server:call(list_to_atom(GUIName), {msg_to_GUI, Channel, Name++"> "++Msg}),
-        {reply, ok, St}.
+    ?LOG({"handleIncomingMsg",Channel,NameAtom,Msg,GUIName}),
+    gen_server:call(GUIName, {msg_to_GUI,atom_to_list(Channel),atom_to_list(Name)++"> "++atom_to_list(Msg)}),
+    {reply, ok, St}.
