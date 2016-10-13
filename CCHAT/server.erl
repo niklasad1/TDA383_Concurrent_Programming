@@ -1,5 +1,5 @@
 -module(server).
--export([handle/2, initial_state/1]).
+-export([handle/2, initial_state/1,requestDontWaitForAnswer/2]).
 -include_lib("./defs.hrl").
 -ifdef(debug).
 -define(LOG(X), io:format("{~p,~p}: ~p~n", [?MODULE,?LINE,X])).
@@ -46,11 +46,13 @@ handle(St,{join_channel,Ch,Pid,Nick}) ->
   case lists:member(Ch,St#server_st.channels) of
     false -> 
       channel:start(Ch, channel:initial_state(Ch), fun channel:handle/2),
-      genserver:request(Ch, {join, {Pid,Nick}}),
+      requestDontWaitForAnswer(Ch, {join, {Pid,Nick}}),
+      % genserver:request(Ch, {join, {Pid,Nick}}),
       NewSt = St#server_st{channels = [Ch|St#server_st.channels]},
       {reply,joined_channel,NewSt};
     true ->
-      genserver:request(Ch, {join, {Pid,Nick}}),
+      requestDontWaitForAnswer(Ch, {join, {Pid,Nick}}),
+      % genserver:request(Ch, {join, {Pid,Nick}}),
       {reply,joined_channel,St}
   end;
 
@@ -60,7 +62,8 @@ handle(St,{exit_channel,Ch,Pid,Nick}) ->
     false ->
       {reply, failed_exit_channel, St};
     true -> 
-     genserver:request(Ch, {leave, {Pid,Nick}}),
+     requestDontWaitForAnswer(Ch, {leave, {Pid,Nick}}),
+     % genserver:request(Ch, {leave, {Pid,Nick}})
      {reply,success_exit_channel,St} 
   end;
 
@@ -70,6 +73,11 @@ handle(St,{msg_from_GUI,Ch,Nick,Msg,Pid}) ->
     false ->
       {reply, failed_exit_channel, St};
     true -> 
-     genserver:request(Ch, {send_msg, {Pid,Nick,Msg}}),
+     requestDontWaitForAnswer(Ch, {send_msg, {Pid,Nick,Msg}}),
+     % genserver:request(Ch, {send_msg, {Pid,Nick,Msg}}),
      {reply,ok,St} 
   end.
+
+
+requestDontWaitForAnswer(Pid, Msg) ->
+  Pid ! {request, self(),make_ref(),Msg}.

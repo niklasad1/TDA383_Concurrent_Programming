@@ -21,7 +21,6 @@ loop(State, F) ->
   ?LOG({"channelLoop",State,F}),
   receive
     {request, From, Ref, Data} ->
-      ?LOG({"channelRequest","state: ",State, "data: ", Data}),
       {reply, R, NewState} = F(State,Data),
       From!{result, Ref, R},
       loop(NewState, F)
@@ -49,7 +48,7 @@ send([{R_Pid,_}|Rest], {Ch, Pid, Nick, Msg, St}) ->
     case R_Pid =:= Pid of
           false ->
             spawn(fun() -> 
-                      genserver:request(R_Pid, {incoming_msg, Ch, Nick, Msg}),
+                      server:requestDontWaitForAnswer(R_Pid, {incoming_msg, Ch, Nick, Msg}),
                       {reply, ok, St} 
                   end),
             send(Rest,{Ch, Pid, Nick, Msg, St});
@@ -59,4 +58,3 @@ send([{R_Pid,_}|Rest], {Ch, Pid, Nick, Msg, St}) ->
 
 send([], _) ->
   ok.
-

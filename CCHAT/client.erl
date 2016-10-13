@@ -130,6 +130,6 @@ handle(St, {nick, _}) ->
 
 %% Incoming message
 handle(St = #client_st { gui = GUIName }, {incoming_msg, Channel, Name, Msg}) ->
-    ?LOG({"handleIncomingMsg",Channel,NameAtom,Msg,GUIName}),
+    ?LOG({"handleIncomingMsg",Channel,Name,Msg,GUIName}),
     gen_server:call(GUIName, {msg_to_GUI,atom_to_list(Channel),atom_to_list(Name)++"> "++atom_to_list(Msg)}),
     {reply, ok, St}.
