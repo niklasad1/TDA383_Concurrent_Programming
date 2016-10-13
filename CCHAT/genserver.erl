@@ -9,6 +9,7 @@
 %% Spawn a process and register it with a given atom
 %% Function F should have arity 1
 start(Atom, State, F) ->
+  % ?LOG({"spawn process", Atom}),
   Pid = spawn(fun() -> loop(State, F) end),
   catch(unregister(Atom)),
   register(Atom, Pid),

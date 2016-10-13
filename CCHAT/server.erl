@@ -43,37 +43,41 @@ handle(St, {disconnect, Pid, Nick}) ->
 	       
 
 handle(St,{join_channel,Ch,Pid,Nick}) ->
-  ?LOG({"serverJoinChannel", St}),
-  Channel = list_to_atom(Ch),
+  ?LOG({"serverJoinChannel", Ch}),
+  % Channel = list_to_atom(Ch),
   case lists:member(Ch,St#server_st.channels) of
-    false ->
-      channel:start(Ch,channel:initial_state(),fun channel:handle/2),
-      genserver:request(Channel, {join, {Pid,Nick}}),
-      NewSt = St#server_st{channels = [Channel|St#server_st.channels]},
-      {reply,ok,NewSt};
-    true -> 
-      genserver:request(Channel, {join, {Pid,Nick}}),
-      {reply,ok,St}
+    false -> 
+      io:format("TIME TO JOIN CHANNEL SENDING MSG ~n"),
+      P = channel:start(Ch, channel:initial_state(), fun channel:handle/2),
+      io:format("spawned process ~p ~n", [P]),
+      R = genserver:request(Ch, {join, {Pid,Nick}}),
+      NewSt = St#server_st{channels = [Ch|St#server_st.channels]},
+      io:format("result ~p ~n",[R]),
+      {reply,joined_channel,NewSt};
+    true ->
+      io:format("CHANNEL EXIST ~n"),
+      genserver:request(Ch, {join, {Pid,Nick}}),
+      {reply,joined_channel,St}
   end;
 
 handle(St,{exit_channel,Ch,Pid,Nick}) ->
   ?LOG({"serverExitChannel", St}),
-  Channel = list_to_atom(Ch),
-  case lists:member(Channel,St#server_st.channels) of
+  % Channel = list_to_atom(Ch),
+  case lists:member(Ch,St#server_st.channels) of
     false ->
       {reply, failed_exit_channel, St};
     true -> 
-     genserver:request(Channel, {exit, {Pid,Nick}}),
-     {reply,ok,St} 
+     genserver:request(Ch, {leave, {Pid,Nick}}),
+     {reply,success_exit_channel,St} 
   end;
 
 handle(St,{msg_from_GUI,Ch,Nick,Msg,Pid}) ->
   ?LOG({"msg_from_GUI", St}),
-  Channel = list_to_atom(Ch),
-  case lists:member(Channel,St#server_st.channels) of
+  % Channel = list_to_atom(Ch),
+  case lists:member(Ch,St#server_st.channels) of
     false ->
       {reply, failed_exit_channel, St};
     true -> 
-     genserver:request(Channel, {send_msg, {Pid,Nick,Msg}}),
+     genserver:request(Ch, {send_msg, {Pid,Nick,Msg}}),
      {reply,ok,St} 
   end.
