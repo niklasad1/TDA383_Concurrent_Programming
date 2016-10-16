@@ -63,16 +63,3 @@ handle(St,{exit_channel,Ch,Pid,Nick}) ->
      genserver:request(Ch, {leave, {Pid,Nick}}),
      {reply,success_exit_channel,St} 
   end.
-
-% handle(St,{msg_from_GUI,Ch,Nick,Msg,Pid}) ->
-%   ?LOG({"msg_from_GUI", St}),
-%   case lists:member(Ch,St#server_st.channels) of
-%     false ->
-%       {reply, failed_exit_channel, St};
-%     true ->
-%      requestDontWaitForAnswer(Ch, {send_msg, {Pid,Nick,Msg}}),
-%      % genserver:request(Ch, {send_msg, {Pid,Nick,Msg}}),
-%      {reply,ok,St}
-%   end.
-
-

@@ -8,4 +8,5 @@
 % Add whatever other fields you need.
 -record(server_st, {servers, conn, channels}).
 
+% Record for the channel process
 -record(ch_st, {name, channel}).

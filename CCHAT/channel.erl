@@ -8,6 +8,7 @@
 -endif.
 
 % list with Pid and Nick
+% name of the channel
 initial_state(Atom) ->
     #ch_st{name = Atom, channel = []}.
 
@@ -50,7 +51,8 @@ handle(St, {leave, {Pid,Nick}}) ->
       {reply,error,St}
   end;
 
-% spawn send messages in separate processes and reply back to the sender
+% spawn send messages in separate processes and reply back to the sender without
+% waiting
 handle(St, {send_msg, {Pid,Nick,Msg}}) ->
   ?LOG({"channelSendMsg", St}),
   spawn(fun() -> send(St#ch_st.channel, {St#ch_st.name, Pid,Nick,Msg,St}) end),
@@ -62,8 +64,6 @@ send([{R_Pid,_}|Rest], {Ch, Pid, Nick, Msg, St}) ->
           false ->
             spawn(fun() -> 
                       requestDontWaitForAnswer(R_Pid,{incoming_msg, Ch, Nick})
-                      % genserver:request(R_Pid, {incoming_msg, Ch, Nick, Msg}),
-                      % {reply, ok, St}
                   end),
             send(Rest,{Ch, Pid, Nick, Msg, St});
           true ->
