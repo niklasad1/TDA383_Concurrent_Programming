@@ -100,10 +100,11 @@ handle(St, {leave, Channel}) ->
 
 % Sending messages
 handle(St, {msg_from_GUI, Channel, Msg}) ->
-    Data={msg_from_GUI, list_to_atom(Channel), St#client_st.nick, list_to_atom(Msg), self()},
+    Data={send_msg, {self(),St#client_st.nick,list_to_atom(Msg)}},
     case lists:member(Channel, St#client_st.channels) of
       true ->
-        try genserver:request(St#client_st.server,Data) of
+        % send direct to channel
+        try genserver:request(list_to_atom(Channel),Data) of
           ok -> {reply, ok, St};
           true -> {reply, {error, user_not_joined, "SHould never happend"}, St}
           catch

@@ -28,16 +28,29 @@ loop(State, F) ->
 
 handle(St, {join, {Pid,Nick}}) ->
   ?LOG({"channelJoin", St}),
-  % assumes no duplicate clients can come here
-  NewSt = St#ch_st{channel = [{Pid,Nick}|St#ch_st.channel]},
-  {reply,ok,NewSt};
+  % assumes clients in already in channel can come here
+  % un-necessary check
+  case lists:member({Pid,Nick}, St#ch_st.channel) of
+    true ->
+      {reply, error, St};
+    false ->  
+      NewSt = St#ch_st{channel = [{Pid,Nick}|St#ch_st.channel]},
+      {reply,ok,NewSt}
+  end;
 
 handle(St, {leave, {Pid,Nick}}) ->
   ?LOG({"channelLeave", St}),
-  % assumes no duplicate clients can come here
-  NewSt = St#ch_st{channel = lists:delete({Pid,Nick},St#ch_st.channel)},
-  {reply,ok,NewSt};
+  % assumes clients not in the channel can come here
+  % un-necessary check 
+  case lists:member({Pid,Nick}, St#ch_st.channel) of
+    true ->
+      NewSt = St#ch_st{channel = lists:delete({Pid,Nick},St#ch_st.channel)},
+      {reply,ok,NewSt};
+    false ->  
+      {reply,error,St}
+  end;
 
+% spawn send messages in separate processes and reply back to the sender
 handle(St, {send_msg, {Pid,Nick,Msg}}) ->
   ?LOG({"channelSendMsg", St}),
   spawn(fun() -> send(St#ch_st.channel, {St#ch_st.name, Pid,Nick,Msg,St}) end),
@@ -48,8 +61,9 @@ send([{R_Pid,_}|Rest], {Ch, Pid, Nick, Msg, St}) ->
     case R_Pid =:= Pid of
           false ->
             spawn(fun() -> 
-                      server:requestDontWaitForAnswer(R_Pid, {incoming_msg, Ch, Nick, Msg}),
-                      {reply, ok, St} 
+                      requestDontWaitForAnswer(R_Pid,{incoming_msg, Ch, Nick})
+                      % genserver:request(R_Pid, {incoming_msg, Ch, Nick, Msg}),
+                      % {reply, ok, St}
                   end),
             send(Rest,{Ch, Pid, Nick, Msg, St});
           true ->
@@ -58,3 +72,7 @@ send([{R_Pid,_}|Rest], {Ch, Pid, Nick, Msg, St}) ->
 
 send([], _) ->
   ok.
+
+requestDontWaitForAnswer(Pid, Msg) ->
+  Pid ! {request, self(),make_ref(),Msg}.
+
