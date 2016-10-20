@@ -63,7 +63,7 @@ send([{R_Pid,_}|Rest], {Ch, Pid, Nick, Msg, St}) ->
     case R_Pid =:= Pid of
           false ->
             spawn(fun() -> 
-                      requestDontWaitForAnswer(R_Pid,{incoming_msg, Ch, Nick})
+                      genserver:request(R_Pid,{incoming_msg, Ch, Nick, Msg})
                   end),
             send(Rest,{Ch, Pid, Nick, Msg, St});
           true ->
